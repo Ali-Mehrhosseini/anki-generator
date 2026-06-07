@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 wordInput.disabled = false;
                 generateBtn.disabled = false;
                 generateBtn.classList.remove('hidden');
-                showError("This word is already in your Anki deck!");
+                showError(`This word is already in your Anki deck: ${deckName}!`);
                 return;
             }
         } catch (e) {
@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 setLoading(false, false);
                 if (data.error && data.error.includes("duplicate")) {
-                    showError("This word is already in your Anki deck!");
+                    showError(`This word is already in your Anki deck: ${deckName}!`);
                     wordInput.classList.add('error-shake');
                     setTimeout(() => wordInput.classList.remove('error-shake'), 600);
                 } else {
