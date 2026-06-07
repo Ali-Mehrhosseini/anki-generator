@@ -84,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const generateBtn = document.getElementById('generateBtn');
     const statusMessage = document.getElementById('statusMessage');
     const progressContainer = document.getElementById('progressContainer');
+    const mainTitle = document.getElementById('mainTitle');
 
     const previewSection = document.getElementById('previewSection');
     const frontHtml = document.getElementById('frontHtml');
@@ -104,10 +105,12 @@ document.addEventListener('DOMContentLoaded', () => {
         frontAudioControls.innerHTML = '';
         backAudioControls.innerHTML = '';
 
-        let deckName = isCreatingNewDeck ? newDeckInput.value.trim() : deckSelect.value;
-        let modelName = modelSelect.value;
-        let language = languageSelect ? languageSelect.value : 'Italian';
-        let translationLang = document.getElementById('translationSelect') ? document.getElementById('translationSelect').value : 'Both (English + Persian)';
+        let deckName = localStorage.getItem('isCreatingNewDeck') === 'true' 
+            ? (localStorage.getItem('newDeckName') || 'Default') 
+            : (localStorage.getItem('deckName') || 'Italian');
+        let modelName = localStorage.getItem('modelName') || 'Italian Vocab';
+        let language = localStorage.getItem('language') || 'Italian';
+        let translationLang = localStorage.getItem('translationLang') || 'Both (English + Persian)';
 
         // Check for duplicate instantly before loading
         try {
@@ -131,12 +134,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setLoading(true);
         try {
-            saveKeys(); // Ensure keys are saved before sending
-
             const apiKeys = {
-                gemini: geminiKeyInput ? geminiKeyInput.value.trim() : '',
-                aws_access: awsAccessKeyInput ? awsAccessKeyInput.value.trim() : '',
-                aws_secret: awsSecretKeyInput ? awsSecretKeyInput.value.trim() : ''
+                gemini: localStorage.getItem('geminiKey') || '',
+                aws_access: localStorage.getItem('awsAccessKey') || '',
+                aws_secret: localStorage.getItem('awsSecretKey') || ''
             };
 
             if (!apiKeys.gemini || !apiKeys.aws_access || !apiKeys.aws_secret) {
@@ -145,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const promptValue = document.getElementById('promptInput').value;
+            const promptValue = localStorage.getItem('customPrompt') || '';
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 headers: {
