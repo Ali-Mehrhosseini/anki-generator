@@ -43,7 +43,7 @@ async function createAnkiNote(data, audios, deckName, modelName, language) {
                 "Conjugation": data.data.conjugation_field
             },
             tags: ["auto", language.toLowerCase()],
-            options: { allowDuplicate: false }
+            options: { allowDuplicate: true }
         }
     });
 
@@ -106,45 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Duplicate check failed:", e);
         }
 
-        function showEtherealLoading() {
-            if (!window.gsap) return;
-
-            const loader = document.createElement('div');
-            loader.id = 'etherealLoader';
-            loader.style.position = 'fixed';
-            loader.style.top = '50%';
-            loader.style.left = '50%';
-            loader.style.transform = 'translate(-50%, -50%)';
-            loader.style.zIndex = '9999';
-            loader.style.display = 'flex';
-            loader.style.gap = '16px';
-            
-            for (let i = 0; i < 3; i++) {
-                const dot = document.createElement('div');
-                dot.style.width = '12px';
-                dot.style.height = '12px';
-                dot.style.background = 'var(--text-primary)';
-                dot.style.borderRadius = '50%';
-                dot.style.boxShadow = '0 0 12px var(--text-primary)';
-                loader.appendChild(dot);
-                
-                gsap.to(dot, {
-                    y: -15,
-                    opacity: 0.2,
-                    scale: 0.8,
-                    duration: 0.8,
-                    repeat: -1,
-                    yoyo: true,
-                    ease: 'sine.inOut',
-                    delay: i * 0.2
-                });
-            }
-            
-            document.body.appendChild(loader);
-            gsap.from(loader, { opacity: 0, duration: 1 });
-        }
-
-        showEtherealLoading();
+        // 3-dot loading removed
         setLoading(true);
         try {
             const apiKeys = {
