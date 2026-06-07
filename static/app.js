@@ -345,9 +345,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let progressInterval;
     const progressContainer = document.getElementById('progressContainer');
-    const progressBar = document.getElementById('progressBar');
-    const progressPercent = document.getElementById('progressPercent');
-
     function setLoading(isLoading, success = true) {
         wordInput.disabled = isLoading;
         generateBtn.disabled = isLoading;
@@ -355,29 +352,8 @@ document.addEventListener('DOMContentLoaded', () => {
             generateBtn.classList.add('hidden');
             progressContainer.classList.remove('hidden');
             statusMessage.classList.add('hidden');
-            
-            let progress = 0;
-            progressBar.style.width = '0%';
-            progressPercent.textContent = '0%';
-            
-            progressInterval = setInterval(() => {
-                let increment = Math.random() * 8;
-                if (progress > 80) increment = Math.random() * 3;
-                if (progress > 90) increment = Math.random() * 0.5;
-                
-                progress += increment;
-                if (progress >= 96) progress = 96;
-                
-                progressBar.style.width = `${progress}%`;
-                progressPercent.textContent = `${Math.floor(progress)}%`;
-            }, 200);
         } else {
-            clearInterval(progressInterval);
             if (success) {
-                let progress = 100;
-                progressBar.style.width = '100%';
-                progressPercent.textContent = '100%';
-                
                 setTimeout(() => {
                     progressContainer.classList.add('hidden');
                     generateBtn.classList.remove('hidden');
