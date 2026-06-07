@@ -129,15 +129,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         </linearGradient>
                         <linearGradient id="fireGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                             <stop offset="0%" stop-color="#fff"/>
-                            <stop offset="20%" stop-color="#ffeb3b"/>
-                            <stop offset="100%" stop-color="#ff4500"/>
+                            <stop offset="20%" stop-color="#ccff00"/>
+                            <stop offset="100%" stop-color="#88cc00"/>
                         </linearGradient>
                     </defs>
                     <!-- Exhaust Fire -->
                     <path class="fire-flame" d="M40 110 Q50 160 60 110 Z" fill="url(#fireGrad)" />
                     <!-- Fins -->
-                    <path d="M25 80 L5 115 L35 105 Z" fill="#ea4335" />
-                    <path d="M75 80 L95 115 L65 105 Z" fill="#ea4335" />
+                    <path d="M25 80 L5 115 L35 105 Z" fill="#ccff00" />
+                    <path d="M75 80 L95 115 L65 105 Z" fill="#ccff00" />
                     <!-- Body -->
                     <path d="M30 60 Q50 -10 70 60 L70 105 L30 105 Z" fill="url(#rocketBody)" />
                     <!-- Window Outer -->

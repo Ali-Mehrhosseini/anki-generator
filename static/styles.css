@@ -1,31 +1,31 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 
 :root {
-    --bg-color: #000000;
-    --surface-color: rgba(10, 10, 10, 0.95);
-    --surface-variant: rgba(20, 20, 20, 0.85);
+    --bg-color: #0b0b0b;
+    --surface-color: rgba(20, 20, 20, 0.95);
+    --surface-variant: rgba(30, 30, 30, 0.85);
     --text-primary: #ffffff;
-    --text-secondary: #a0a0a0;
-    --border-color: rgba(255, 255, 255, 0.2);
-    --accent-color: #ffffff;
-    --accent-hover: #cccccc;
+    --text-secondary: #aaaaaa;
+    --border-color: rgba(255, 255, 255, 0.15);
+    --accent-color: #ccff00;
+    --accent-hover: #b3e600;
     --input-bg: rgba(255, 255, 255, 0.05);
-    --error-color: #ea4335;
-    --success-color: #34a853;
+    --error-color: #ff3333;
+    --success-color: #ccff00;
     --shadow-sm: none;
     --shadow-md: none;
 }
 
 :root.light-mode {
-    --bg-color: #f8f9fa;
+    --bg-color: #f4f4f4;
     --surface-color: rgba(255, 255, 255, 0.95);
-    --surface-variant: rgba(245, 245, 245, 0.85);
+    --surface-variant: rgba(240, 240, 240, 0.85);
     --text-primary: #111111;
     --text-secondary: #555555;
-    --border-color: rgba(0, 0, 0, 0.2);
-    --accent-color: #000000;
-    --accent-hover: #333333;
-    --input-bg: rgba(0, 0, 0, 0.05);
+    --border-color: rgba(17, 17, 17, 0.2);
+    --accent-color: #ccff00;
+    --accent-hover: #b3e600;
+    --input-bg: rgba(17, 17, 17, 0.05);
 }
 
 * {
@@ -140,39 +140,48 @@ header {
 }
 
 h1 {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 3.5rem;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 5rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     margin-bottom: 0.5rem;
     color: var(--text-primary);
+    transform: skewX(-10deg);
+    text-shadow: 3px 3px 0px var(--accent-color);
 }
 
 header p {
     color: var(--text-secondary);
-    font-size: 1.125rem;
+    font-size: 1.25rem;
     font-weight: 400;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+    transform: skewX(-10deg);
 }
 
-/* Glassmorphism minimal panel -> Aerospace Panel */
+/* Aerospace Panel -> Brutalist Racing Panel */
 .minimal-panel {
-    background: #000000;
+    background: var(--bg-color);
     border-radius: 0;
-    padding: 1.5rem;
+    padding: 2rem;
     box-shadow: none;
-    border: 1px solid var(--border-color);
+    border: 2px solid var(--border-color);
+    border-left: 6px solid var(--accent-color);
     position: relative;
     overflow: hidden;
     transition: transform 0.3s ease, border-color 0.3s ease;
+    transform: skewX(-5deg);
+}
+
+.minimal-panel > * {
+    transform: skewX(5deg);
 }
 
 .minimal-panel:hover {
-    border-color: #ffffff;
-    box-shadow: none;
-    transform: translateY(-2px);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 15px rgba(204, 255, 0, 0.2);
+    transform: skewX(-5deg) translateY(-2px);
 }
 
 /* Input Section */
@@ -191,15 +200,16 @@ header p {
 input {
     flex: 1;
     background: transparent;
-    border: 1px solid var(--border-color);
+    border: 2px solid var(--border-color);
     border-radius: 0;
     padding: 1.25rem 2rem;
     color: var(--text-primary);
-    font-size: 1.1rem;
+    font-size: 1.25rem;
     outline: none;
     transition: all 0.3s ease;
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.05em;
+    transform: skewX(-10deg);
 }
 
 input::placeholder {
@@ -209,20 +219,21 @@ input::placeholder {
 
 input:focus {
     background: var(--input-bg);
-    border-color: var(--text-primary);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px rgba(204, 255, 0, 0.2);
 }
 
 button {
     background: transparent;
     color: var(--text-primary);
-    border: 1px solid var(--text-primary);
+    border: 2px solid var(--accent-color);
     border-radius: 0;
     padding: 1.25rem 2.5rem;
-    font-size: 1.1rem;
+    font-size: 1.5rem;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s ease;
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Bebas Neue', sans-serif;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     display: flex;
@@ -230,17 +241,19 @@ button {
     justify-content: center;
     min-width: 180px;
     box-shadow: none;
+    transform: skewX(-10deg);
 }
 
 button:hover {
-    background: var(--text-primary);
-    color: var(--bg-color);
-    transform: translateY(-2px);
-    box-shadow: 0 0 15px var(--border-color);
+    background: var(--accent-color);
+    color: #000000;
+    transform: skewX(-10deg) scale(1.05);
+    box-shadow: 0 0 20px var(--accent-color);
 }
 
 button:active {
-    background: var(--text-secondary);
+    background: var(--accent-hover);
+    transform: skewX(-10deg) scale(0.95);
     box-shadow: none;
 }
 
@@ -397,14 +410,15 @@ button:disabled {
 }
 
 .preview-section h2 {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.25rem;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
     font-weight: 500;
     margin-bottom: 1.5rem;
     color: var(--text-secondary);
     text-align: center;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+    transform: skewX(-10deg);
 }
 
 .card-container {
@@ -418,19 +432,24 @@ button:disabled {
     padding: 2rem;
     padding-top: 3rem;
     background: var(--surface-color);
-    border: 1px solid var(--border-color);
+    border: 2px solid var(--border-color);
+    border-left: 6px solid var(--accent-color);
+    transform: skewX(-5deg);
+}
+.card-side > * {
+    transform: skewX(5deg);
 }
 
 .side-label {
     position: absolute;
     top: 1rem;
     left: 1.5rem;
-    font-size: 0.75rem;
+    font-size: 1rem;
     text-transform: uppercase;
-    letter-spacing: 0.2em;
-    color: var(--text-secondary);
+    letter-spacing: 0.1em;
+    color: var(--accent-color);
     font-weight: 600;
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: 'Bebas Neue', sans-serif;
 }
 
 /* Anki Content Overrides */
