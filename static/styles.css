@@ -575,3 +575,56 @@ textarea:focus {
     font-size: 0.75rem;
     color: var(--text-secondary);
 }
+
+.dropdown-arrow {
+    font-size: 10px;
+    margin-left: 6px;
+    opacity: 0.6;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.custom-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 12px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 8px;
+    min-width: 160px;
+    z-index: 100;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    opacity: 1;
+    visibility: visible;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.custom-dropdown.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-50%) translateY(-10px);
+    pointer-events: none;
+}
+
+.dropdown-item {
+    padding: 10px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: left;
+}
+
+.dropdown-item:hover {
+    background: rgba(0, 0, 0, 0.05);
+    transform: translateX(4px);
+}

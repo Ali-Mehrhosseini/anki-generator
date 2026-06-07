@@ -383,6 +383,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Initialize on load
         updateLanguageUI(languageSelect.value);
+
+        // Custom Dropdown Logic
+        const flagBannerEl = document.getElementById('flagBanner');
+        const languageDropdown = document.getElementById('languageDropdown');
+        
+        if (flagBannerEl && languageDropdown) {
+            flagBannerEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                languageDropdown.classList.toggle('hidden');
+            });
+
+            document.addEventListener('click', () => {
+                if (!languageDropdown.classList.contains('hidden')) {
+                    languageDropdown.classList.add('hidden');
+                }
+            });
+
+            document.querySelectorAll('.dropdown-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const newLang = item.getAttribute('data-lang');
+                    languageSelect.value = newLang; // Sync with settings panel
+                    updateLanguageUI(newLang);
+                });
+            });
+        }
     }
 
     let isCreatingNewDeck = false;

@@ -11,9 +11,19 @@
     <button type="button" id="settingsToggleBtn" class="settings-corner-btn" title="Anki Settings">⚙️ Settings</button>
     <div class="container" style="position: relative;">
         <header>
-            <div id="flagBanner" class="flag-banner bounce-anim">
-                <img id="flagImage" src="https://flagcdn.com/w160/it.png" class="waving-flag" alt="Italian Flag">
-                <span id="flagText">Italian</span>
+            <div class="flag-wrapper" style="position: relative; display: inline-block;">
+                <div id="flagBanner" class="flag-banner bounce-anim" style="cursor: pointer; position: relative;">
+                    <img id="flagImage" src="https://flagcdn.com/w160/it.png" class="waving-flag" alt="Italian Flag">
+                    <span id="flagText">Italian</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div id="languageDropdown" class="custom-dropdown hidden">
+                    <div class="dropdown-item" data-lang="Italian">🇮🇹 Italian</div>
+                    <div class="dropdown-item" data-lang="Spanish">🇪🇸 Spanish</div>
+                    <div class="dropdown-item" data-lang="French">🇫🇷 French</div>
+                    <div class="dropdown-item" data-lang="German">🇩🇪 German</div>
+                    <div class="dropdown-item" data-lang="Japanese">🇯🇵 Japanese</div>
+                </div>
             </div>
             <div class="header-title-row">
                 <h1 id="mainTitle">Italian Anki Generator</h1>
