@@ -51,6 +51,11 @@ async function createAnkiNote(data, audios, deckName, modelName, language) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem('hideCorsNotice') === 'true') {
+        const corsNotice = document.getElementById('corsNotice');
+        if (corsNotice) corsNotice.style.display = 'none';
+    }
+
     const form = document.getElementById('wordForm');
     const wordInput = document.getElementById('wordInput');
     const generateBtn = document.getElementById('generateBtn');
@@ -288,8 +293,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } catch (err) {
+            console.error("Generate error:", err);
             setLoading(false, false);
-            showError("Oops! Connection lost. 🔌 Please ensure the Python server is running.");
+            let msg = err.message || "Oops! Connection lost. 🔌 Please ensure the Python server is running.";
+            if (msg === "Failed to fetch") msg = "Oops! Connection lost. 🔌 Please ensure the Python server is running.";
+            showError(msg);
         }
     });
 

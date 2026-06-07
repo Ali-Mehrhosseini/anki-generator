@@ -30,7 +30,12 @@ def generate():
         
     return Response(
         process_word(word, language=language, api_keys=api_keys, custom_prompt=custom_prompt, translation_lang=translation_lang),
-        mimetype='text/event-stream'
+        mimetype='text/event-stream',
+        headers={
+            'X-Accel-Buffering': 'no',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive'
+        }
     )
 
 if __name__ == '__main__':
