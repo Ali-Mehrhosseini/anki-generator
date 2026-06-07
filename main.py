@@ -55,14 +55,25 @@ polly = boto3.client(
 # ============================================================
 def anki(action: str, **params):
     """Send a JSON request to the local AnkiConnect server."""
-    res = requests.post(
-        ANKICONNECT,
-        json={"action": action, "version": 6, "params": params},
-        timeout=10,
-    ).json()
+    try:
+        res = requests.post(
+            ANKICONNECT,
+            json={"action": action, "version": 6, "params": params},
+            timeout=10,
+        ).json()
+    except requests.exceptions.ConnectionError:
+        raise RuntimeError("Could not connect to Anki. Please ensure Anki is open and AnkiConnect is installed/running.")
+
     if res.get("error"):
         raise RuntimeError(f"AnkiConnect error on '{action}': {res['error']}")
     return res["result"]
+
+def check_anki_status() -> bool:
+    try:
+        requests.post(ANKICONNECT, json={"action": "version", "version": 6}, timeout=2)
+        return True
+    except requests.exceptions.ConnectionError:
+        return False
 
 # ============================================================
 # 4. Step 1: ask Gemini for structured content

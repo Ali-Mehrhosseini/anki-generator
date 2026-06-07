@@ -130,4 +130,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const audio = new Audio("data:audio/mp3;base64," + base64Str);
         audio.play().catch(e => console.error("Error playing audio:", e));
     }
+
+    // Anki Status Polling
+    const ankiStatusIndicator = document.getElementById('ankiStatus');
+    
+    async function checkAnkiStatus() {
+        try {
+            const response = await fetch('/api/status');
+            const data = await response.json();
+            
+            if (data.status === 'online') {
+                ankiStatusIndicator.className = 'status-indicator status-online';
+                ankiStatusIndicator.title = 'Anki is connected and running';
+            } else {
+                ankiStatusIndicator.className = 'status-indicator status-offline';
+                ankiStatusIndicator.title = 'Anki is not running. Please open Anki.';
+            }
+        } catch (error) {
+            ankiStatusIndicator.className = 'status-indicator status-offline';
+            ankiStatusIndicator.title = 'Cannot connect to the local server.';
+        }
+    }
+
+    // Check immediately on load, then every 5 seconds
+    checkAnkiStatus();
+    setInterval(checkAnkiStatus, 5000);
 });
