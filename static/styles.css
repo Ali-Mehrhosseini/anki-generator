@@ -57,8 +57,19 @@ header {
     border-radius: 50%;
     background-color: #ccc;
     transition: all 0.3s ease;
-    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
     margin-top: -8px; /* Visually center with heading text */
+    animation: cute-breathe 2.5s infinite ease-in-out;
+}
+
+@keyframes cute-breathe {
+    0%, 100% { 
+        transform: scale(0.8); 
+        opacity: 0.6; 
+    }
+    50% { 
+        transform: scale(1.15); 
+        opacity: 1; 
+    }
 }
 
 .status-online {
