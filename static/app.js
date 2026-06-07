@@ -51,33 +51,7 @@ async function createAnkiNote(data, audios, deckName, modelName, language) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const mainConnectionStatus = document.getElementById('mainConnectionStatus');
 
-    // Auto-verify connection on load
-    const verifyConnection = async () => {
-        const gemini = localStorage.getItem('geminiKey') || '';
-        const aws_access = localStorage.getItem('awsAccessKey') || '';
-        const aws_secret = localStorage.getItem('awsSecretKey') || '';
-
-        if (gemini && aws_access && aws_secret) {
-            try {
-                const response = await fetch('/api/verify-keys', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ apiKeys: { gemini, aws_access, aws_secret } })
-                });
-                const data = await response.json();
-                if (!data.error && data.gemini && data.aws) {
-                    if (mainConnectionStatus) {
-                        mainConnectionStatus.classList.remove('hidden');
-                    }
-                }
-            } catch (e) {
-                console.error("Auto-verify failed", e);
-            }
-        }
-    };
-    verifyConnection();
 
     const form = document.getElementById('wordForm');
     const wordInput = document.getElementById('wordInput');

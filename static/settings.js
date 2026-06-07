@@ -21,6 +21,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (corsNotice) corsNotice.style.display = 'none';
     }
 
+    const autoConnectionStatus = document.getElementById('autoConnectionStatus');
+    const verifyConnection = async () => {
+        const gemini = localStorage.getItem('geminiKey') || '';
+        const aws_access = localStorage.getItem('awsAccessKey') || '';
+        const aws_secret = localStorage.getItem('awsSecretKey') || '';
+
+        if (gemini && aws_access && aws_secret) {
+            try {
+                const response = await fetch('/api/verify-keys', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiKeys: { gemini, aws_access, aws_secret } })
+                });
+                const data = await response.json();
+                if (!data.error && data.gemini && data.aws) {
+                    if (autoConnectionStatus) {
+                        autoConnectionStatus.classList.remove('hidden');
+                    }
+                }
+            } catch (e) {
+                console.error("Auto-verify failed", e);
+            }
+        }
+    };
+    verifyConnection();
+
     // Elements
     const languageSelect = document.getElementById('languageSelect');
     const deckSelect = document.getElementById('deckSelect');
