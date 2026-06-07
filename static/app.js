@@ -106,22 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Duplicate check failed:", e);
         }
 
-        function launchRocket() {
-            const rocket = document.createElement('div');
-            rocket.className = 'rocket-container rocket-launching';
-            rocket.innerHTML = `
-                <div style="position:relative;">
-                    🚀
-                    <div class="rocket-particles"></div>
-                </div>
-            `;
-            document.body.appendChild(rocket);
-            setTimeout(() => {
-                if(rocket.parentNode) rocket.remove();
-            }, 2000);
+        if (window.cinematicEngine) {
+            window.cinematicEngine.startSequence(word);
         }
-
-        launchRocket();
         setLoading(true);
         try {
             const apiKeys = {
@@ -262,27 +249,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     setTimeout(() => {
                         previewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         
-                        // Epic Confetti Explosion!
-                        if (typeof confetti === 'function') {
-                            const duration = 3000;
-                            const animationEnd = Date.now() + duration;
-                            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
-
-                            function randomInRange(min, max) {
-                              return Math.random() * (max - min) + min;
-                            }
-
-                            const interval = setInterval(function() {
-                              const timeLeft = animationEnd - Date.now();
-
-                              if (timeLeft <= 0) {
-                                return clearInterval(interval);
-                              }
-
-                              const particleCount = 50 * (timeLeft / duration);
-                              confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
-                              confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
-                            }, 250);
+                        // Cinematic Detonation!
+                        if (window.cinematicEngine) {
+                            window.cinematicEngine.detonate();
                         }
                     }, 100);
                 } catch (ankiErr) {
@@ -322,6 +291,11 @@ document.addEventListener('DOMContentLoaded', () => {
             progressContainer.classList.remove('hidden');
             statusMessage.classList.add('hidden');
         } else {
+            if (!success && window.cinematicEngine && window.cinematicEngine.active) {
+                window.cinematicEngine.canvas.style.opacity = '0';
+                document.body.style.filter = 'none';
+                setTimeout(() => window.cinematicEngine.active = false, 500);
+            }
             if (success) {
                 setTimeout(() => {
                     progressContainer.classList.add('hidden');
