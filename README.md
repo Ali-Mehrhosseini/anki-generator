@@ -47,14 +47,3 @@ Click the **⚙️ Settings** icon in the top right corner of the web interface 
    ```
 3. Open `http://localhost:5000` in your browser.
 
-## Running with Docker
-
-1. Change `ANKICONNECT` in your `.env` to `http://host.docker.internal:8765` so Docker can communicate with Anki on your host machine.
-2. Build the image:
-   ```bash
-   docker build -t anki-generator .
-   ```
-3. Run the container:
-   ```bash
-   docker run -p 5000:5000 --env-file .env anki-generator
-   ```
