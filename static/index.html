@@ -4,27 +4,84 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Italian Anki Generator</title>
-    <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=12">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Vazirmatn:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
+    <button type="button" id="settingsToggleBtn" class="settings-corner-btn" title="Anki Settings">⚙️ Settings</button>
+    <div class="container" style="position: relative;">
         <header>
+            <div id="flagBanner" class="flag-banner bounce-anim">
+                <img id="flagImage" src="https://flagcdn.com/w160/it.png" class="waving-flag" alt="Italian Flag">
+                <span id="flagText">Italian</span>
+            </div>
             <div class="header-title-row">
-                <h1>Italian Anki Generator</h1>
+                <h1 id="mainTitle">Italian Anki Generator</h1>
                 <div class="status-indicator" id="ankiStatus" title="Checking Anki status..."></div>
             </div>
             <p>Generate vocabulary and conjugations with audio</p>
         </header>
+
+        <div class="settings-panel hidden minimal-panel" id="settingsPanel">
+            <h3>⚙️ Anki Settings</h3>
+            <div class="settings-grid">
+                <div class="setting-group">
+                    <label for="languageSelect">Target Language</label>
+                    <select id="languageSelect">
+                        <option value="Italian" selected>Italian</option>
+                        <option value="Spanish">Spanish</option>
+                        <option value="French">French</option>
+                        <option value="German">German</option>
+                        <option value="Japanese">Japanese</option>
+                    </select>
+                    <small class="hint">Changes AI prompt and AWS Polly voice.</small>
+                </div>
+                <div class="setting-group">
+                    <label for="deckSelect">Target Deck</label>
+                    <div class="deck-input-group">
+                        <select id="deckSelect"></select>
+                        <input type="text" id="newDeckInput" placeholder="Or type new deck name" class="hidden">
+                        <button type="button" id="toggleNewDeckBtn" class="small-btn" title="Create new deck">➕</button>
+                    </div>
+                    <small class="hint">Missing decks will be created automatically.</small>
+                </div>
+                <div class="setting-group">
+                    <label for="modelSelect">Note Type</label>
+                    <select id="modelSelect"></select>
+                    <small class="hint">Must contain the required fields (Front, Back, etc).</small>
+                </div>
+                <div class="setting-group">
+                    <label for="translationSelect">Translation Language</label>
+                    <select id="translationSelect">
+                        <option value="Both (English + Persian)" selected>Both (English + Persian)</option>
+                        <option value="English">English Only</option>
+                        <option value="Persian">Persian Only</option>
+                    </select>
+                    <small class="hint">Language of the meaning on the back.</small>
+                </div>
+                <div class="setting-group full-width">
+                    <label for="promptInput">AI Prompt (Advanced)</label>
+                    <textarea id="promptInput" rows="4" placeholder="Loading default prompt..."></textarea>
+                    <div style="text-align: right; margin-top: 4px;">
+                        <button type="button" id="resetPromptBtn" class="small-btn">Reset to Default</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="input-section minimal-panel">
             <form id="wordForm">
                 <input type="text" id="wordInput" placeholder="Enter an Italian word or English phrase..." required autocomplete="off">
                 <button type="submit" id="generateBtn">
                     <span class="btn-text">Generate Card</span>
-                    <span class="spinner hidden"></span>
                 </button>
             </form>
+            <div id="progressContainer" class="progress-container hidden">
+                <div class="progress-text">Crafting your card... <span id="progressPercent">0%</span></div>
+                <div class="progress-track">
+                    <div id="progressBar" class="progress-bar"></div>
+                </div>
+            </div>
             <div id="statusMessage" class="hidden"></div>
         </div>
 
@@ -45,6 +102,6 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=22"></script>
 </body>
 </html>

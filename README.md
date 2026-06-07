@@ -11,12 +11,12 @@ It uses **Google Gemini** to fetch accurate Italian vocabulary, context examples
 3. An existing deck in your Anki named `Italian`.
 4. An existing note type named `Italian Vocab` (Ensure it has fields like Word, Front, Back, WordAudio, Audio, Conjugation).
 
-## API Keys Required
+## Environment Variables
 
-Create a `.env` file in the root directory and add your API keys:
+Create a `.env` file in the root directory:
 
 ```env
-GEMINI_API_KEY="your_gemini_key"
+GEMINI_API_KEY="your_google_gemini_key"
 AWS_ACCESS_KEY="your_aws_key"
 AWS_SECRET_KEY="your_aws_secret"
 AWS_REGION="us-east-1"
@@ -25,6 +25,8 @@ NOTE_TYPE="Italian Vocab"
 POLLY_VOICE="Beatrice"
 ANKICONNECT="http://localhost:8765"
 ```
+
+> **Note on Decks & Note Types**: The `DECK_NAME` and `NOTE_TYPE` above act as default values. You can easily override these defaults while using the app! Just click the **⚙️ Settings** icon in the top right corner of the webpage to select any Deck or Note Type directly from your Anki app. If you type a new Deck name that doesn't exist yet, it will automatically be created for you!
 
 ## Running Locally (Python)
 
