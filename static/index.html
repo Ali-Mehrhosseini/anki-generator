@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Italian Anki Generator</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Italian Anki Generator</h1>
+            <p>Generate beautiful Anki cards with AI & AWS Polly.</p>
+        </header>
+
+        <div class="input-section minimal-panel">
+            <form id="wordForm">
+                <input type="text" id="wordInput" placeholder="Enter an Italian word or English phrase..." required autocomplete="off">
+                <button type="submit" id="generateBtn">
+                    <span class="btn-text">Generate Card</span>
+                    <span class="spinner hidden"></span>
+                </button>
+            </form>
+            <div id="statusMessage" class="hidden"></div>
+        </div>
+
+        <div class="preview-section hidden" id="previewSection">
+            <h2>Card Preview</h2>
+            <div class="card-container">
+                <div class="card-side minimal-panel" id="frontPreview">
+                    <div class="side-label">Front</div>
+                    <div class="html-content" id="frontHtml"></div>
+                    <div class="audio-controls" id="frontAudioControls"></div>
+                </div>
+                <div class="card-side minimal-panel" id="backPreview">
+                    <div class="side-label">Back</div>
+                    <div class="html-content" id="backHtml"></div>
+                    <div class="audio-controls" id="backAudioControls"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
