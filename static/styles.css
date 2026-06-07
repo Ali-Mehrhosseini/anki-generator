@@ -750,5 +750,44 @@ textarea:focus {
 
 @keyframes twinkle {
     0% { opacity: 0.3; transform: scale(0.8) rotate(0deg); }
-    100% { opacity: 1; transform: scale(1.2) rotate(15deg); }
+}
+
+/* Rocket Animation */
+.rocket-container {
+    position: fixed;
+    bottom: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 60px;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.rocket-launching {
+    animation: blastOff 2s cubic-bezier(0.5, 0, 0.2, 1) forwards;
+}
+
+@keyframes blastOff {
+    0% { bottom: -100px; transform: translateX(-50%) scale(1); filter: drop-shadow(0 0 10px rgba(255, 165, 0, 0.8)); }
+    20% { bottom: 20px; transform: translateX(-50%) scale(1.2) rotate(5deg); }
+    40% { bottom: 40px; transform: translateX(-50%) scale(1.2) rotate(-5deg); }
+    100% { bottom: 120vh; transform: translateX(-50%) scale(0.5); filter: drop-shadow(0 20px 20px rgba(255, 69, 0, 0)); }
+}
+
+.rocket-particles {
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 40px;
+    background: linear-gradient(to bottom, #ff9900, #ff0000, transparent);
+    border-radius: 50%;
+    filter: blur(5px);
+    animation: exhaustFire 0.1s infinite alternate;
+}
+
+@keyframes exhaustFire {
+    0% { height: 40px; opacity: 1; }
+    100% { height: 60px; opacity: 0.7; }
 }
