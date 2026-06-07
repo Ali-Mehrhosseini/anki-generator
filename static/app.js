@@ -86,6 +86,48 @@ document.addEventListener('DOMContentLoaded', () => {
     if (awsAccessKeyInput) awsAccessKeyInput.addEventListener('blur', saveKeys);
     if (awsSecretKeyInput) awsSecretKeyInput.addEventListener('blur', saveKeys);
     
+    const verifyKeysBtn = document.getElementById('verifyKeysBtn');
+    const verifyKeysStatus = document.getElementById('verifyKeysStatus');
+    if (verifyKeysBtn) {
+        verifyKeysBtn.addEventListener('click', async () => {
+            saveKeys();
+            const gemini = geminiKeyInput ? geminiKeyInput.value.trim() : '';
+            const aws_access = awsAccessKeyInput ? awsAccessKeyInput.value.trim() : '';
+            const aws_secret = awsSecretKeyInput ? awsSecretKeyInput.value.trim() : '';
+            
+            if (!gemini || !aws_access || !aws_secret) {
+                verifyKeysStatus.innerHTML = '<span style="color:var(--error-color)">Missing keys</span>';
+                return;
+            }
+            
+            verifyKeysBtn.disabled = true;
+            verifyKeysBtn.textContent = 'Verifying...';
+            verifyKeysStatus.innerHTML = '';
+            
+            try {
+                const response = await fetch('/api/verify-keys', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ apiKeys: { gemini, aws_access, aws_secret } })
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    verifyKeysStatus.innerHTML = `<span style="color:var(--error-color); display:inline-block; max-width:200px; font-size:11px; line-height:1.2;">❌ ${data.error}</span>`;
+                } else if (data.gemini && data.aws) {
+                    verifyKeysStatus.innerHTML = '<span style="color:#34a853">✅ Connected & Verified!</span>';
+                } else {
+                    verifyKeysStatus.innerHTML = '<span style="color:var(--error-color)">❌ Verification failed</span>';
+                }
+            } catch (err) {
+                verifyKeysStatus.innerHTML = '<span style="color:var(--error-color)">❌ Connection error</span>';
+            } finally {
+                verifyKeysBtn.disabled = false;
+                verifyKeysBtn.textContent = 'Verify Connection';
+            }
+        });
+    }
+    
     const previewSection = document.getElementById('previewSection');
     const frontHtml = document.getElementById('frontHtml');
     const backHtml = document.getElementById('backHtml');

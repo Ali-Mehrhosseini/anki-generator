@@ -30,6 +30,41 @@ LANGUAGE_CONFIGS = {
     "German": {"voice": "Lennart", "code": "de-DE", "engine": "generative"},
     "Japanese": {"voice": "Mizuki", "code": "ja-JP", "engine": "neural"},
 }
+
+def verify_api_keys(gemini_key: str, aws_access: str, aws_secret: str) -> dict:
+    results = {"gemini": False, "aws": False, "error": None}
+    
+    # Test Gemini
+    try:
+        if not gemini_key:
+            raise ValueError("No Gemini key provided.")
+        client = genai.Client(api_key=gemini_key)
+        client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents="hi",
+            config=types.GenerateContentConfig(max_output_tokens=1)
+        )
+        results["gemini"] = True
+    except Exception as e:
+        results["error"] = f"Gemini Error: {str(e)}"
+        return results
+
+    # Test AWS
+    try:
+        if not aws_access or not aws_secret:
+            raise ValueError("No AWS keys provided.")
+        polly = boto3.client(
+            "polly",
+            region_name=AWS_REGION,
+            aws_access_key_id=aws_access,
+            aws_secret_access_key=aws_secret,
+        )
+        polly.describe_voices(LanguageCode='en-US')
+        results["aws"] = True
+    except Exception as e:
+        results["error"] = f"AWS Error: {str(e)}"
+        
+    return results
 # ============================================================
 # 3. Ask Gemini for structured content
 # ============================================================

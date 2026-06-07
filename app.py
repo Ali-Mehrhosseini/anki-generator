@@ -15,6 +15,18 @@ def get_prompt():
     from main import SYSTEM_INSTRUCTION_TEMPLATE
     return jsonify({"prompt": SYSTEM_INSTRUCTION_TEMPLATE}), 200
 
+@app.route('/api/verify-keys', methods=['POST'])
+def verify_keys():
+    from main import verify_api_keys
+    data = request.json
+    api_keys = data.get('apiKeys', {})
+    gemini_key = api_keys.get('gemini', '')
+    aws_access = api_keys.get('aws_access', '')
+    aws_secret = api_keys.get('aws_secret', '')
+    
+    result = verify_api_keys(gemini_key, aws_access, aws_secret)
+    return jsonify(result), 200
+
 @app.route('/api/generate', methods=['POST'])
 def generate():
     data = request.json
