@@ -25,7 +25,7 @@
 body {
     font-family: 'Outfit', sans-serif;
     background-color: var(--bg-color);
-    background-image: url('antigravity_bg.png?v=2');
+    background-image: url('antigravity_mesh_bg.png?v=1');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
