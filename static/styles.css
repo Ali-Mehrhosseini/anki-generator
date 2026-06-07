@@ -373,7 +373,7 @@ button:disabled {
 
 /* Preview Section */
 .preview-section {
-    margin-top: 2rem;
+    margin-top: 4rem;
     animation: fadeIn 0.4s ease-out;
 }
 
