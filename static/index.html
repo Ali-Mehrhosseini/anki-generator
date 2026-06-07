@@ -32,14 +32,23 @@
             <p>Generate vocabulary and conjugations with audio</p>
         </header>
         
-        <div id="corsNotice" class="minimal-panel" style="background: rgba(255, 165, 0, 0.1); border: 1px solid rgba(255, 165, 0, 0.3); margin-bottom: 20px;">
-            <h4 style="margin: 0 0 10px 0; color: #ffa500;">⚠️ AnkiConnect Setup Required</h4>
-            <p style="font-size: 14px; margin: 0 0 10px 0; opacity: 0.9;">To allow this public website to add cards to your local Anki, you must open Anki, go to <b>Tools → Add-ons → AnkiConnect → Config</b>, and add <code>"*"</code> to the <code>webCorsOriginList</code> like this:</p>
-            <pre style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-size: 12px; margin: 0 0 10px 0;">"webCorsOriginList": [
+        <div id="corsNotice" class="minimal-panel" style="background: rgba(255, 165, 0, 0.1); border: 1px solid rgba(255, 165, 0, 0.3); margin-bottom: 20px; text-align: left;">
+            <h4 style="margin: 0 0 10px 0; color: #ffa500;">🔌 Connect to your Anki App</h4>
+            <p style="font-size: 14px; margin: 0 0 10px 0; opacity: 0.9;">This website sends AI-generated flashcards directly to the Anki application running on your computer. To allow this connection, please do the following one-time setup:</p>
+            <ol style="font-size: 14px; opacity: 0.9; padding-left: 20px; margin-bottom: 15px; line-height: 1.5;">
+                <li>Open the <b>Anki</b> app on your computer.</li>
+                <li>Go to <b>Tools</b> at the top menu → <b>Add-ons</b>.</li>
+                <li>Select <b>AnkiConnect</b> from the list and click the <b>Config</b> button.</li>
+                <li>Scroll down to <code>webCorsOriginList</code> and add a <code>"*"</code> so it looks exactly like the box below.</li>
+                <li>Restart your Anki app.</li>
+            </ol>
+            <pre style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-size: 12px; margin: 0 0 15px 0; font-family: monospace;">"webCorsOriginList": [
     "http://localhost",
     "*"
 ]</pre>
-            <button type="button" class="small-btn" onclick="document.getElementById('corsNotice').style.display='none'">I've done this</button>
+            <div style="display: flex; justify-content: center;">
+                <button type="button" class="small-btn" onclick="document.getElementById('corsNotice').style.display='none'">Got it! Hide this</button>
+            </div>
         </div>
 
         <div class="settings-panel hidden minimal-panel" id="settingsPanel">
