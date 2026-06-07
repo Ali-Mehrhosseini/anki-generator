@@ -301,7 +301,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     let progressInterval;
-    const progressContainer = document.getElementById('progressContainer');
     function setLoading(isLoading, success = true) {
         wordInput.disabled = isLoading;
         generateBtn.disabled = isLoading;
