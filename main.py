@@ -11,6 +11,7 @@ Pipeline:
 
 import os
 import sys
+import json
 import base64
 import boto3
 from google import genai
@@ -127,7 +128,6 @@ def generate_audio(text: str, voice: str, lang_code: str, aws_access_key: str, a
 # 4. Orchestrator: one word, top to bottom
 # ============================================================
 def process_word(user_input: str, language: str, api_keys: dict, custom_prompt: str = None, translation_lang: str = "Both (English + Persian)") -> dict:
-    import json
     user_input = user_input.strip()
     print(f"→ {user_input} ({language})")
     try:
