@@ -17,8 +17,10 @@ echo "Running as user: $APP_USER"
 
 # 1. Update and install dependencies
 echo "Installing system dependencies..."
-apt-get update
-apt-get install -y python3-pip python3-venv nginx certbot python3-certbot-nginx
+yum update -y
+yum install -y python3 python3-pip nginx git
+# Try to install certbot via yum, if it fails, we will skip it for now
+yum install -y certbot python3-certbot-nginx || echo "Skipping yum certbot install"
 
 # 2. Setup Python Virtual Environment
 echo "Setting up Python environment..."
@@ -37,7 +39,7 @@ After=network.target
 
 [Service]
 User=$APP_USER
-Group=www-data
+Group=nginx
 WorkingDirectory=$APP_DIR
 Environment="PATH=$APP_DIR/venv/bin"
 ExecStart=$APP_DIR/venv/bin/gunicorn --workers 3 --bind unix:anki-generator.sock -m 007 app:app
@@ -60,7 +62,7 @@ else
     echo "Domain provided. Configuring Nginx for $DOMAIN."
 fi
 
-cat > /etc/nginx/sites-available/anki-generator << EOF
+cat > /etc/nginx/conf.d/anki-generator.conf << EOF
 server {
     listen 80;
     server_name $SERVER_NAME;
@@ -75,10 +77,8 @@ server {
 }
 EOF
 
-# Enable Nginx site
-ln -sf /etc/nginx/sites-available/anki-generator /etc/nginx/sites-enabled/
-# Remove default nginx site if exists
-rm -f /etc/nginx/sites-enabled/default
+# Restart Nginx
+systemctl enable nginx
 systemctl restart nginx
 
 # 5. SSL / HTTPS (If domain provided)
