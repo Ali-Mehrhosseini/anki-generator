@@ -42,7 +42,7 @@ User=$APP_USER
 Group=nginx
 WorkingDirectory=$APP_DIR
 Environment="PATH=$APP_DIR/venv/bin"
-ExecStart=$APP_DIR/venv/bin/gunicorn --workers 3 --bind unix:anki-generator.sock -m 007 app:app
+ExecStart=$APP_DIR/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:5000 app:app
 
 [Install]
 WantedBy=multi-user.target
@@ -72,7 +72,7 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_pass http://unix:$APP_DIR/anki-generator.sock;
+        proxy_pass http://127.0.0.1:5000;
     }
 }
 EOF
