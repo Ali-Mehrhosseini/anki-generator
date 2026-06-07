@@ -106,9 +106,101 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Duplicate check failed:", e);
         }
 
-        if (window.cinematicEngine) {
-            window.cinematicEngine.startSequence(word);
+        function launchBeautifulRocket() {
+            if (!window.gsap) return;
+
+            // Create Rocket Container
+            const rocket = document.createElement('div');
+            rocket.id = 'gsapRocket';
+            rocket.style.position = 'fixed';
+            rocket.style.bottom = '-150px';
+            rocket.style.left = '50%';
+            rocket.style.transform = 'translateX(-50%)';
+            rocket.style.zIndex = '9999';
+            rocket.style.pointerEvents = 'none';
+
+            // Beautiful SVG Rocket
+            rocket.innerHTML = `
+                <svg width="100" height="150" viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 10px 10px rgba(0,0,0,0.2));">
+                    <defs>
+                        <linearGradient id="rocketBody" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#ffffff"/>
+                            <stop offset="100%" stop-color="#e0e0e0"/>
+                        </linearGradient>
+                        <linearGradient id="fireGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#fff"/>
+                            <stop offset="20%" stop-color="#ffeb3b"/>
+                            <stop offset="100%" stop-color="#ff4500"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Exhaust Fire -->
+                    <path class="fire-flame" d="M40 110 Q50 160 60 110 Z" fill="url(#fireGrad)" />
+                    <!-- Fins -->
+                    <path d="M25 80 L5 115 L35 105 Z" fill="#ea4335" />
+                    <path d="M75 80 L95 115 L65 105 Z" fill="#ea4335" />
+                    <!-- Body -->
+                    <path d="M30 60 Q50 -10 70 60 L70 105 L30 105 Z" fill="url(#rocketBody)" />
+                    <!-- Window Outer -->
+                    <circle cx="50" cy="65" r="14" fill="#a0a0a0" />
+                    <!-- Window Inner -->
+                    <circle cx="50" cy="65" r="10" fill="#4285f4" />
+                </svg>
+            `;
+            document.body.appendChild(rocket);
+
+            const flame = rocket.querySelector('.fire-flame');
+
+            // GSAP Timeline for cinematic launch
+            const tl = gsap.timeline();
+            
+            // 1. Move into frame
+            tl.to(rocket, { bottom: '50px', duration: 1, ease: 'power3.out' });
+            
+            // 2. Wiggle/Shake before launch
+            tl.to(rocket, { x: '+=5', yoyo: true, repeat: 10, duration: 0.05 });
+            
+            // 3. Flame pulsating
+            gsap.to(flame, { scaleY: 1.5, transformOrigin: 'top center', yoyo: true, repeat: -1, duration: 0.1 });
+
+            // 4. Blast off!
+            tl.to(rocket, { 
+                bottom: '150vh', 
+                duration: 1.5, 
+                ease: 'power4.in',
+                onComplete: () => rocket.remove() 
+            });
+
+            // 5. Spawn smoke particles during blast off
+            let smokeInterval = setInterval(() => {
+                if (!document.getElementById('gsapRocket')) {
+                    clearInterval(smokeInterval);
+                    return;
+                }
+                const smoke = document.createElement('div');
+                smoke.style.position = 'fixed';
+                const rect = rocket.getBoundingClientRect();
+                smoke.style.left = (rect.left + rect.width / 2) + 'px';
+                smoke.style.top = (rect.bottom - 20) + 'px';
+                smoke.style.width = '20px';
+                smoke.style.height = '20px';
+                smoke.style.background = '#ddd';
+                smoke.style.borderRadius = '50%';
+                smoke.style.pointerEvents = 'none';
+                smoke.style.zIndex = '9998';
+                document.body.appendChild(smoke);
+
+                gsap.to(smoke, {
+                    x: (Math.random() - 0.5) * 100,
+                    y: '+=50',
+                    scale: Math.random() * 3 + 2,
+                    opacity: 0,
+                    duration: 1 + Math.random(),
+                    onComplete: () => smoke.remove()
+                });
+            }, 50);
         }
+
+        launchBeautifulRocket();
         setLoading(true);
         try {
             const apiKeys = {
@@ -248,10 +340,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Scroll smoothly to the preview section
                     setTimeout(() => {
                         previewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        
-                        // Cinematic Detonation!
-                        if (window.cinematicEngine) {
-                            window.cinematicEngine.detonate();
+                        // Epic Confetti Explosion!
+                        if (typeof confetti === 'function') {
+                            const duration = 3000;
+                            const animationEnd = Date.now() + duration;
+                            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+                            function randomInRange(min, max) {
+                              return Math.random() * (max - min) + min;
+                            }
+
+                            const interval = setInterval(function() {
+                              const timeLeft = animationEnd - Date.now();
+
+                              if (timeLeft <= 0) {
+                                return clearInterval(interval);
+                              }
+
+                              const particleCount = 50 * (timeLeft / duration);
+                              confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                              confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+                            }, 250);
                         }
                     }, 100);
                 } catch (ankiErr) {
@@ -291,10 +400,8 @@ document.addEventListener('DOMContentLoaded', () => {
             progressContainer.classList.remove('hidden');
             statusMessage.classList.add('hidden');
         } else {
-            if (!success && window.cinematicEngine && window.cinematicEngine.active) {
-                window.cinematicEngine.canvas.style.opacity = '0';
-                document.body.style.filter = 'none';
-                setTimeout(() => window.cinematicEngine.active = false, 500);
+            if (!success && document.getElementById('gsapRocket')) {
+                document.getElementById('gsapRocket').remove();
             }
             if (success) {
                 setTimeout(() => {
