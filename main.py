@@ -40,7 +40,7 @@ def verify_api_keys(gemini_key: str, aws_access: str, aws_secret: str) -> dict:
             raise ValueError("No Gemini key provided.")
         client = genai.Client(api_key=gemini_key)
         client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.1-flash-lite",
             contents="hi",
             config=types.GenerateContentConfig(max_output_tokens=1)
         )
@@ -65,17 +65,7 @@ def verify_api_keys(gemini_key: str, aws_access: str, aws_secret: str) -> dict:
         results["error"] = f"AWS Error: {str(e)}"
         
     return results
-# ============================================================
-# 3. Ask Gemini for structured content
-# ============================================================
 
-# ============================================================
-# 4. Step 1: ask Gemini for structured content
-# ============================================================
-
-# ============================================================
-# 5. Step 2: ask Polly to record the example sentence
-# ============================================================
 def generate_content(word: str, language: str, gemini_api_key: str, custom_prompt: str = None, translation_lang: str = "Both (English + Persian)") -> dict:
     if not gemini_api_key:
         return {"error": "Missing Gemini API Key."}
