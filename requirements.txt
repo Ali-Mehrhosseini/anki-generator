@@ -3,3 +3,4 @@ python-dotenv
 google-genai
 boto3
 requests
+gunicorn==21.2.0
