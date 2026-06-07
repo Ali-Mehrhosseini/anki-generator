@@ -32,18 +32,29 @@ Before running this application, you must have the following:
    cd anki-generator
    ```
 
-2. **Install the Python dependencies:**
-   Make sure you have Python installed, then run:
+2. **Install Python and pip (if not already installed):**
+   - **Ubuntu/Debian**: `sudo apt update && sudo apt install python3 python3-pip python3-venv`
+   - **CentOS/RHEL**: `sudo yum install python3 python3-pip`
+   - **Mac**: `brew install python`
+
+3. **Create a Virtual Environment (Recommended):**
+   It's best practice to use a virtual environment so dependencies don't conflict:
    ```bash
-   pip install -r requirements.txt
+   python3 -m venv venv
+   source venv/bin/activate
    ```
 
-3. **Start the Flask server:**
+4. **Install the Python dependencies:**
    ```bash
-   python app.py
+   pip3 install -r requirements.txt
    ```
 
-4. **Open the App:**
+5. **Start the Flask server:**
+   ```bash
+   python3 app.py
+   ```
+
+6. **Open the App:**
    Navigate to `http://localhost:5000` in your web browser.
 
 ## ⚙️ Configuration & Usage
