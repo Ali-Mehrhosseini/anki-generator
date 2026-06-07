@@ -127,17 +127,19 @@ def generate_audio(text: str, voice: str, lang_code: str, aws_access_key: str, a
 # ============================================================
 # 4. Orchestrator: one word, top to bottom
 # ============================================================
-def process_word(user_input: str, language: str, api_keys: dict, custom_prompt: str = None, translation_lang: str = "Both (English + Persian)") -> dict:
+def process_word(user_input: str, language: str, api_keys: dict, custom_prompt: str = None, translation_lang: str = "Both (English + Persian)"):
     user_input = user_input.strip()
     print(f"→ {user_input} ({language})")
     try:
+        yield f"data: {json.dumps({'status': f'🧠 Asking Gemini to translate {user_input}...'})}\n\n"
         # 1. Ask Gemini to generate the content based on the prompt
         data = generate_content(user_input, language, api_keys.get("gemini"), custom_prompt=custom_prompt, translation_lang=translation_lang)
         
         # 2. Check if Gemini rejected the word (e.g. wrong language)
         if data.get("error"):
             print(f"   ❌ Gemini error: {data['error']}")
-            return {"success": False, "error": data["error"]}
+            yield f"data: {json.dumps({'error': data['error']})}\n\n"
+            return
         
         config = LANGUAGE_CONFIGS.get(language, LANGUAGE_CONFIGS["Italian"])
         voice = config["voice"]
@@ -146,6 +148,8 @@ def process_word(user_input: str, language: str, api_keys: dict, custom_prompt: 
 
         is_verb = bool(data["conjugation_field"])
         print(f"   Gemini: word={data['word']}, verb={'yes' if is_verb else 'no'}")
+
+        yield f"data: {json.dumps({'status': f'🗣️ Synthesizing {language} audio with AWS Polly...'})}\n\n"
 
         # always need word audio + example audio
         aws_kwargs = {
@@ -166,13 +170,15 @@ def process_word(user_input: str, language: str, api_keys: dict, custom_prompt: 
 
         total = sum(len(b) for b in audios.values())
         print(f"   Polly:  {len(audios)} clips, {total:,} bytes")
+        
+        yield f"data: {json.dumps({'status': '📦 Compiling flashcard data...'})}\n\n"
 
         audios_b64 = {k: base64.b64encode(v).decode() for k, v in audios.items()}
-        return {"success": True, "data": data, "audios": audios_b64}
+        yield f"data: {json.dumps({'result': {'success': True, 'data': data, 'audios': audios_b64}})}\n\n"
     except Exception as e:
         error_msg = str(e)
         if "does not support the selected engine: generative" in error_msg:
             error_msg = f"AWS Polly Error: The voice '{voice}' does not support the 'generative' AI engine. Please update main.py to use 'neural' for {language}."
         print(f"   ❌ {error_msg}")
-        return {"success": False, "error": error_msg}
+        yield f"data: {json.dumps({'error': error_msg})}\n\n"
 

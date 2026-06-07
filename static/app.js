@@ -151,7 +151,71 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ word, deckName, modelName, language, prompt: promptValue, translationLang, apiKeys })
             });
 
-            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder("utf-8");
+            const activityLog = document.getElementById('activityLog');
+            activityLog.innerHTML = '';
+            
+            let finalData = null;
+            let buffer = '';
+            
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                
+                buffer += decoder.decode(value, { stream: true });
+                let lines = buffer.split('\n\n');
+                buffer = lines.pop(); // keep the incomplete part in buffer
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const payloadStr = line.substring(6);
+                        try {
+                            const parsed = JSON.parse(payloadStr);
+                            if (parsed.error) {
+                                throw new Error(parsed.error);
+                            }
+                            if (parsed.status) {
+                                const prev = activityLog.lastElementChild;
+                                if (prev) {
+                                    prev.classList.remove('loading');
+                                    prev.classList.add('completed');
+                                }
+                                
+                                const item = document.createElement('div');
+                                item.className = 'activity-item loading';
+                                item.textContent = parsed.status;
+                                activityLog.appendChild(item);
+                                activityLog.scrollTop = activityLog.scrollHeight;
+                            }
+                            if (parsed.result) {
+                                finalData = parsed.result;
+                            }
+                        } catch (e) {
+                            if (e.message !== "Unexpected end of JSON input" && !e.message.startsWith("JSON")) {
+                                throw e; // throw real errors, ignore json parse errors
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Mark last one completed
+            const lastItem = activityLog.lastElementChild;
+            if (lastItem) {
+                lastItem.classList.remove('loading');
+                lastItem.classList.add('completed');
+            }
+
+            if (!finalData) {
+                throw new Error("Stream closed without final result.");
+            }
+            
+            const data = finalData;
 
             if (data.success) {
                 try {
