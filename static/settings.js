@@ -35,13 +35,39 @@ document.addEventListener('DOMContentLoaded', async () => {
                     body: JSON.stringify({ apiKeys: { gemini, aws_access, aws_secret } })
                 });
                 const data = await response.json();
-                if (!data.error && data.gemini && data.aws) {
-                    if (autoConnectionStatus) {
-                        autoConnectionStatus.classList.remove('hidden');
+                if (autoConnectionStatus) {
+                    autoConnectionStatus.classList.remove('hidden');
+                    if (!data.error && data.gemini && data.aws) {
+                        autoConnectionStatus.classList.remove('cloud-error');
+                        autoConnectionStatus.classList.add('cloud-success');
+                        autoConnectionStatus.querySelector('.cloud-icon').textContent = '☁️';
+                        autoConnectionStatus.querySelector('.cloud-text').textContent = 'Cloud APIs Connected & Ready!';
+                        autoConnectionStatus.querySelector('.sparkle-icon').textContent = '✨';
+                    } else {
+                        autoConnectionStatus.classList.remove('cloud-success');
+                        autoConnectionStatus.classList.add('cloud-error');
+                        autoConnectionStatus.querySelector('.cloud-icon').textContent = '⚠️';
+                        autoConnectionStatus.querySelector('.cloud-text').textContent = 'Cloud APIs Disconnected';
+                        autoConnectionStatus.querySelector('.sparkle-icon').textContent = '';
                     }
                 }
             } catch (e) {
                 console.error("Auto-verify failed", e);
+                if (autoConnectionStatus) {
+                    autoConnectionStatus.classList.remove('hidden', 'cloud-success');
+                    autoConnectionStatus.classList.add('cloud-error');
+                    autoConnectionStatus.querySelector('.cloud-icon').textContent = '⚠️';
+                    autoConnectionStatus.querySelector('.cloud-text').textContent = 'Cloud APIs Disconnected';
+                    autoConnectionStatus.querySelector('.sparkle-icon').textContent = '';
+                }
+            }
+        } else {
+            if (autoConnectionStatus) {
+                autoConnectionStatus.classList.remove('hidden', 'cloud-success');
+                autoConnectionStatus.classList.add('cloud-error');
+                autoConnectionStatus.querySelector('.cloud-icon').textContent = '⚠️';
+                autoConnectionStatus.querySelector('.cloud-text').textContent = 'API Keys Missing';
+                autoConnectionStatus.querySelector('.sparkle-icon').textContent = '';
             }
         }
     };
