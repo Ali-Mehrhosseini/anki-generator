@@ -26,8 +26,15 @@ POLLY_VOICE="Beatrice"
 ANKICONNECT="http://localhost:8765"
 ```
 
-> **Note on Decks & Note Types**: The `DECK_NAME` and `NOTE_TYPE` above act as default values. You can easily override these defaults while using the app! Just click the **⚙️ Settings** icon in the top right corner of the webpage to select any Deck or Note Type directly from your Anki app. If you type a new Deck name that doesn't exist yet, it will automatically be created for you!
+## ⚙️ Settings Panel
 
+Click the **⚙️ Settings** icon in the top right corner of the web interface to customize the card generation process:
+
+- **Target Language**: Select the language you are learning (Italian, Spanish, French, German, Japanese). This dynamically updates the AI instruction prompt and selects the appropriate native AWS Polly voice.
+- **Target Deck**: Choose which Anki deck to add the generated flashcards to. If you want to use a new deck, click the `➕` button and type a name—it will be automatically created in Anki for you!
+- **Note Type**: Select the Anki note type for your flashcards. Ensure your selected note type contains the required fields (e.g., Word, Front, Back, WordAudio, Audio, Conjugation).
+- **Translation Language**: Choose whether the AI should output the translation meaning and example sentence in **Both (English + Persian)**, **English Only**, or **Persian Only**. The Persian translations are rendered with the beautiful Vazirmatn font.
+- **AI Prompt (Advanced)**: For ultimate control, you can view and directly edit the exact instructions being sent to the Gemini AI. You can add specific rules, change grammar explanations, or completely customize the HTML structure of the generated cards! Click "Reset to Default" to restore the original prompt.
 ## Running Locally (Python)
 
 1. Install dependencies:
