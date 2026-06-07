@@ -11,31 +11,16 @@ Pipeline:
 
 import os
 import sys
-import json
 import base64
-import requests
 import boto3
-from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from pathlib import Path
 
-load_dotenv()
-
 PROMPT_FILE = Path(__file__).parent / "prompt.md"
 SYSTEM_INSTRUCTION_TEMPLATE = PROMPT_FILE.read_text(encoding="utf-8")
 
-# ============================================================
-# 1. CONFIG — fill these in
-# ============================================================
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-AWS_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY")
-AWS_SECRET_KEY = os.getenv("AWS_SECRET_KEY")
-AWS_REGION     = os.getenv("AWS_REGION", "us-east-1")
-
-DECK_NAME      = os.getenv("DECK_NAME", "Italian")
-NOTE_TYPE      = os.getenv("NOTE_TYPE", "Italian Vocab")
-ANKICONNECT    = os.getenv("ANKICONNECT", "http://localhost:8765")
+AWS_REGION = "us-east-1"
 
 LANGUAGE_CONFIGS = {
     "Italian": {"voice": "Beatrice", "code": "it-IT", "engine": "generative"},
@@ -44,61 +29,9 @@ LANGUAGE_CONFIGS = {
     "German": {"voice": "Lennart", "code": "de-DE", "engine": "generative"},
     "Japanese": {"voice": "Mizuki", "code": "ja-JP", "engine": "neural"},
 }
-
 # ============================================================
-# 2. CLIENTS — created once, reused for every word in batch mode
+# 3. Ask Gemini for structured content
 # ============================================================
-gemini = genai.Client(api_key=GEMINI_API_KEY)
-
-polly = boto3.client(
-    "polly",
-    region_name=AWS_REGION,
-    aws_access_key_id=AWS_ACCESS_KEY,
-    aws_secret_access_key=AWS_SECRET_KEY,
-)
-
-# ============================================================
-# 3. AnkiConnect helper
-# ============================================================
-def anki(action: str, **params):
-    """Send a JSON request to the local AnkiConnect server."""
-    try:
-        res = requests.post(
-            ANKICONNECT,
-            json={"action": action, "version": 6, "params": params},
-            timeout=10,
-        ).json()
-    except requests.exceptions.ConnectionError:
-        raise RuntimeError("Could not connect to Anki. Please ensure Anki is open and AnkiConnect is installed/running.")
-
-    if res.get("error"):
-        raise RuntimeError(f"AnkiConnect error on '{action}': {res['error']}")
-    return res["result"]
-
-def check_anki_status() -> bool:
-    try:
-        requests.post(ANKICONNECT, json={"action": "version", "version": 6}, timeout=2)
-        return True
-    except requests.exceptions.ConnectionError:
-        return False
-
-def get_anki_info() -> dict:
-    try:
-        decks = anki("deckNames")
-        models = anki("modelNames")
-        return {"success": True, "decks": decks, "models": models}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
-
-def check_duplicate(word: str, deck_name: str) -> bool:
-    try:
-        decks = anki("deckNames")
-        if deck_name not in decks:
-            return False
-        res = anki("findNotes", query=f'"deck:{deck_name}" "Word:{word}"')
-        return len(res) > 0
-    except Exception:
-        return False
 
 # ============================================================
 # 4. Step 1: ask Gemini for structured content
@@ -107,7 +40,12 @@ def check_duplicate(word: str, deck_name: str) -> bool:
 # ============================================================
 # 5. Step 2: ask Polly to record the example sentence
 # ============================================================
-def generate_content(word: str, language: str, custom_prompt: str = None, translation_lang: str = "Both (English + Persian)") -> dict:
+def generate_content(word: str, language: str, gemini_api_key: str, custom_prompt: str = None, translation_lang: str = "Both (English + Persian)") -> dict:
+    if not gemini_api_key:
+        return {"error": "Missing Gemini API Key."}
+        
+    gemini = genai.Client(api_key=gemini_api_key)
+    
     base_prompt = custom_prompt if custom_prompt else SYSTEM_INSTRUCTION_TEMPLATE
     system_instruction = base_prompt.replace("{LANGUAGE}", language)
 
@@ -161,9 +99,21 @@ def generate_content(word: str, language: str, custom_prompt: str = None, transl
 },
         ),
     )
+    # The return format depends on the client. For json it's returned as a text string that we parse.
     return json.loads(response.text)
+
 #======================
-def generate_audio(text: str, voice: str, lang_code: str, engine: str = "neural") -> bytes:
+def generate_audio(text: str, voice: str, lang_code: str, aws_access_key: str, aws_secret_key: str, engine: str = "neural") -> bytes:
+    if not aws_access_key or not aws_secret_key:
+        raise ValueError("Missing AWS credentials.")
+        
+    polly = boto3.client(
+        "polly",
+        region_name=AWS_REGION,
+        aws_access_key_id=aws_access_key,
+        aws_secret_access_key=aws_secret_key,
+    )
+    
     speech = polly.synthesize_speech(
         Text=text,
         OutputFormat="mp3",
@@ -174,51 +124,15 @@ def generate_audio(text: str, voice: str, lang_code: str, engine: str = "neural"
     return speech["AudioStream"].read()
 
 # ============================================================
-# 6. Step 3: save audio + add the note in Anki
+# 4. Orchestrator: one word, top to bottom
 # ============================================================
-PRONOUNS = ["io", "tu", "lui", "noi", "voi", "loro"]
-
-def add_to_anki(data: dict, audios: dict[str, bytes], deck_name: str = None, model_name: str = None) -> int:
-    """audios is a dict mapping suffix → mp3 bytes,
-       e.g. {'': bytes, '_example': bytes, '_io': bytes, ...}"""
-    word = data["word"]
-    target_deck = deck_name or DECK_NAME
-    target_model = model_name or NOTE_TYPE
-
-    # Auto-create deck if it doesn't exist
-    existing_decks = anki("deckNames")
-    if target_deck not in existing_decks:
-        anki("createDeck", deck=target_deck)
-
-    # store every audio file with its matching filenamef
-    for suffix, mp3_bytes in audios.items():
-        filename = f"{word}{suffix}.mp3"
-        anki("storeMediaFile",filename=filename,data=base64.b64encode(mp3_bytes).decode())
-    return anki("addNote", note={
-        "deckName":  target_deck,
-        "modelName": target_model,
-        "fields": {
-            "Word":        word,
-            "Front":       data["front_html"],
-            "Back":        data["back_html"],
-            "WordAudio":   f"[sound:{word}.mp3]",
-            "Audio":       f"[sound:{word}_example.mp3]",
-            "Conjugation": data["conjugation_field"],
-        },
-        "tags": ["auto", "italian"],
-        "options": {"allowDuplicate": False},
-    
-    })
-
-# ============================================================
-# 7. Orchestrator: one word, top to bottom
-# ============================================================
-def process_word(user_input: str, language: str, target_deck: str, target_model: str, custom_prompt: str = None, translation_lang: str = "Both (English + Persian)") -> dict:
+def process_word(user_input: str, language: str, api_keys: dict, custom_prompt: str = None, translation_lang: str = "Both (English + Persian)") -> dict:
+    import json
     user_input = user_input.strip()
     print(f"→ {user_input} ({language})")
     try:
         # 1. Ask Gemini to generate the content based on the prompt
-        data = generate_content(user_input, language, custom_prompt=custom_prompt, translation_lang=translation_lang)
+        data = generate_content(user_input, language, api_keys.get("gemini"), custom_prompt=custom_prompt, translation_lang=translation_lang)
         
         # 2. Check if Gemini rejected the word (e.g. wrong language)
         if data.get("error"):
@@ -234,35 +148,31 @@ def process_word(user_input: str, language: str, target_deck: str, target_model:
         print(f"   Gemini: word={data['word']}, verb={'yes' if is_verb else 'no'}")
 
         # always need word audio + example audio
+        aws_kwargs = {
+            "aws_access_key": api_keys.get("aws_access"),
+            "aws_secret_key": api_keys.get("aws_secret"),
+            "engine": engine
+        }
+        
         audios = {
-            "":         generate_audio(data["tts_word"], voice, lang_code, engine),
-            "_example": generate_audio(data["tts_example"], voice, lang_code, engine),
+            "":         generate_audio(data["tts_word"], voice, lang_code, **aws_kwargs),
+            "_example": generate_audio(data["tts_example"], voice, lang_code, **aws_kwargs),
         }
 
         # verbs need six more
         if is_verb:
             for i in range(1, 7):
-                audios[f"_{i}"] = generate_audio(data[f"tts_verb_{i}"], voice, lang_code, engine)
+                audios[f"_{i}"] = generate_audio(data[f"tts_verb_{i}"], voice, lang_code, **aws_kwargs)
 
         total = sum(len(b) for b in audios.values())
         print(f"   Polly:  {len(audios)} clips, {total:,} bytes")
 
-        note_id = add_to_anki(data, audios, target_deck, target_model)
-        print(f"   ✅ Anki note {note_id}")
         audios_b64 = {k: base64.b64encode(v).decode() for k, v in audios.items()}
-        return {"success": True, "note_id": note_id, "data": data, "audios": audios_b64}
+        return {"success": True, "data": data, "audios": audios_b64}
     except Exception as e:
         error_msg = str(e)
         if "does not support the selected engine: generative" in error_msg:
             error_msg = f"AWS Polly Error: The voice '{voice}' does not support the 'generative' AI engine. Please update main.py to use 'neural' for {language}."
         print(f"   ❌ {error_msg}")
         return {"success": False, "error": error_msg}
-# ============================================================
-# 8. CLI entry point
-# ============================================================
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python add_word.py <word> [<word> ...]")
-        sys.exit(1)
-    for w in sys.argv[1:]:
-        process_word(w)
+

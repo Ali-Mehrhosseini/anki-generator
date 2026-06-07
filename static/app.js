@@ -1,3 +1,55 @@
+const ANKICONNECT_URL = 'http://127.0.0.1:8765';
+
+async function invokeAnki(action, params = {}) {
+    const payload = { action, version: 6, params };
+    const response = await fetch(ANKICONNECT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (result.error) {
+        throw new Error(result.error);
+    }
+    return result.result;
+}
+
+async function createAnkiNote(data, audios, deckName, modelName, language) {
+    const word = data.data.word;
+    
+    // Auto-create deck if it doesn't exist
+    const existingDecks = await invokeAnki('deckNames');
+    if (!existingDecks.includes(deckName)) {
+        await invokeAnki('createDeck', { deck: deckName });
+    }
+    
+    // store every audio file
+    for (const [suffix, base64Data] of Object.entries(audios)) {
+        const filename = `${word}${suffix}.mp3`;
+        await invokeAnki('storeMediaFile', { filename: filename, data: base64Data });
+    }
+    
+    // Add note
+    const noteId = await invokeAnki('addNote', {
+        note: {
+            deckName: deckName,
+            modelName: modelName,
+            fields: {
+                "Word": word,
+                "Front": data.data.front_html,
+                "Back": data.data.back_html,
+                "WordAudio": `[sound:${word}.mp3]`,
+                "Audio": `[sound:${word}_example.mp3]`,
+                "Conjugation": data.data.conjugation_field
+            },
+            tags: ["auto", language.toLowerCase()],
+            options: { allowDuplicate: false }
+        }
+    });
+    
+    return noteId;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('wordForm');
     const wordInput = document.getElementById('wordInput');
@@ -8,6 +60,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainTitle = document.getElementById('mainTitle');
     const languageSelect = document.getElementById('languageSelect');
     const statusMessage = document.getElementById('statusMessage');
+    
+    // API Keys
+    const geminiKeyInput = document.getElementById('geminiKey');
+    const awsAccessKeyInput = document.getElementById('awsAccessKey');
+    const awsSecretKeyInput = document.getElementById('awsSecretKey');
+    
+    // Load saved API keys
+    if (geminiKeyInput) geminiKeyInput.value = localStorage.getItem('geminiKey') || '';
+    if (awsAccessKeyInput) awsAccessKeyInput.value = localStorage.getItem('awsAccessKey') || '';
+    if (awsSecretKeyInput) awsSecretKeyInput.value = localStorage.getItem('awsSecretKey') || '';
+    
+    // Save API keys on blur
+    const saveKeys = () => {
+        if (geminiKeyInput) localStorage.setItem('geminiKey', geminiKeyInput.value.trim());
+        if (awsAccessKeyInput) localStorage.setItem('awsAccessKey', awsAccessKeyInput.value.trim());
+        if (awsSecretKeyInput) localStorage.setItem('awsSecretKey', awsSecretKeyInput.value.trim());
+    };
+    if (geminiKeyInput) geminiKeyInput.addEventListener('blur', saveKeys);
+    if (awsAccessKeyInput) awsAccessKeyInput.addEventListener('blur', saveKeys);
+    if (awsSecretKeyInput) awsSecretKeyInput.addEventListener('blur', saveKeys);
     
     const previewSection = document.getElementById('previewSection');
     const frontHtml = document.getElementById('frontHtml');
@@ -39,14 +111,10 @@ document.addEventListener('DOMContentLoaded', () => {
             wordInput.disabled = true;
             generateBtn.disabled = true;
             
-            const checkRes = await fetch('/api/check_duplicate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ word, deckName })
-            });
-            const checkData = await checkRes.json();
+            const query = `"${word}" "deck:${deckName}"`;
+            const notes = await invokeAnki('findNotes', { query });
             
-            if (checkData.duplicate) {
+            if (notes && notes.length > 0) {
                 wordInput.disabled = false;
                 generateBtn.disabled = false;
                 generateBtn.classList.remove('hidden');
@@ -55,68 +123,91 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (e) {
             // Ignore error and proceed to let main logic handle it
+            console.error("Duplicate check failed:", e);
         }
 
         setLoading(true);
         try {
+            saveKeys(); // Ensure keys are saved before sending
+            
+            const apiKeys = {
+                gemini: geminiKeyInput ? geminiKeyInput.value.trim() : '',
+                aws_access: awsAccessKeyInput ? awsAccessKeyInput.value.trim() : '',
+                aws_secret: awsSecretKeyInput ? awsSecretKeyInput.value.trim() : ''
+            };
+            
+            if (!apiKeys.gemini || !apiKeys.aws_access || !apiKeys.aws_secret) {
+                setLoading(false, false);
+                showError("Please enter your API Keys in the Settings panel.");
+                return;
+            }
+
             const promptValue = document.getElementById('promptInput').value;
             const response = await fetch('/api/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ word, deckName, modelName, language, prompt: promptValue, translationLang })
+                body: JSON.stringify({ word, deckName, modelName, language, prompt: promptValue, translationLang, apiKeys })
             });
 
             const data = await response.json();
 
             if (data.success) {
-                setLoading(false, true);
-                showSuccess(`Successfully generated and added note ID: ${data.note_id}`);
-                
-                // Strip [sound:...] tags from the front entirely
-                const cleanFront = data.data.front_html.replace(/\[sound:.*?\.mp3\]/g, '');
-                
-                let cleanBack = data.data.back_html;
-                const word = data.data.word;
-                
-                // Replace conjugation audio tags [sound:word_1.mp3] with inline play buttons!
-                const playIconSvg = `<svg viewBox="0 0 24 24" width="20" height="20" style="vertical-align: text-bottom; cursor: pointer; fill: var(--accent-color); margin-left: 6px; transition: transform 0.2s;"><path d="M8 5v14l11-7z"/></svg>`;
-                for (let i = 1; i <= 6; i++) {
-                    const soundTag = `[sound:${word}_${i}.mp3]`;
-                    if (data.audios[`_${i}`]) {
-                        const btnHtml = `<span class="inline-audio" data-suffix="_${i}" title="Play">${playIconSvg}</span>`;
-                        cleanBack = cleanBack.replace(soundTag, btnHtml);
+                try {
+                    // Now save it to Anki locally!
+                    const noteId = await createAnkiNote(data, data.audios, deckName, modelName, language);
+                    
+                    setLoading(false, true);
+                    showSuccess(`Successfully generated and added note ID: ${noteId}`);
+                    
+                    // Strip [sound:...] tags from the front entirely
+                    const cleanFront = data.data.front_html.replace(/\[sound:.*?\.mp3\]/g, '');
+                    
+                    let cleanBack = data.data.back_html;
+                    const word = data.data.word;
+                    
+                    // Replace conjugation audio tags [sound:word_1.mp3] with inline play buttons!
+                    const playIconSvg = `<svg viewBox="0 0 24 24" width="20" height="20" style="vertical-align: text-bottom; cursor: pointer; fill: var(--accent-color); margin-left: 6px; transition: transform 0.2s;"><path d="M8 5v14l11-7z"/></svg>`;
+                    for (let i = 1; i <= 6; i++) {
+                        const soundTag = `[sound:${word}_${i}.mp3]`;
+                        if (data.audios[`_${i}`]) {
+                            const btnHtml = `<span class="inline-audio" data-suffix="_${i}" title="Play">${playIconSvg}</span>`;
+                            cleanBack = cleanBack.replace(soundTag, btnHtml);
+                        }
                     }
-                }
-                
-                // Strip any remaining sound tags from the back
-                cleanBack = cleanBack.replace(/\[sound:.*?\.mp3\]/g, '');
-                
-                frontHtml.innerHTML = cleanFront;
-                backHtml.innerHTML = cleanBack;
-                
-                // Attach click handlers
-                window.__audioMap = data.audios;
-                backHtml.querySelectorAll('.inline-audio').forEach(btn => {
-                    btn.onclick = (e) => {
-                        e.stopPropagation();
-                        playBase64Audio(window.__audioMap[btn.dataset.suffix]);
-                    };
-                });
-                
-                renderAudioControls(data.audios);
+                    
+                    // Strip any remaining sound tags from the back
+                    cleanBack = cleanBack.replace(/\[sound:.*?\.mp3\]/g, '');
+                    
+                    frontHtml.innerHTML = cleanFront;
+                    backHtml.innerHTML = cleanBack;
+                    
+                    // Attach click handlers
+                    window.__audioMap = data.audios;
+                    backHtml.querySelectorAll('.inline-audio').forEach(btn => {
+                        btn.onclick = (e) => {
+                            e.stopPropagation();
+                            playBase64Audio(window.__audioMap[btn.dataset.suffix]);
+                        };
+                    });
+                    
+                    renderAudioControls(data.audios);
 
-                previewSection.classList.remove('hidden');
-                wordInput.classList.remove('error-shake');
-                
-                // Clear the input for the next word
-                wordInput.value = '';
-                
-                // Scroll smoothly to the preview section
-                setTimeout(() => {
-                    previewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 100);
+                    previewSection.classList.remove('hidden');
+                    wordInput.classList.remove('error-shake');
+                    
+                    // Clear the input for the next word
+                    wordInput.value = '';
+                    
+                    // Scroll smoothly to the preview section
+                    setTimeout(() => {
+                        previewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                } catch (ankiErr) {
+                    setLoading(false, false);
+                    showError("Failed to add to Anki: " + ankiErr.message);
+                }
             } else {
                 setLoading(false, false);
                 if (data.error && data.error.includes("duplicate")) {
@@ -319,31 +410,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchAnkiInfo() {
         try {
-            const res = await fetch('/api/anki-info');
-            const data = await res.json();
-            if (data.success) {
-                // Populate decks
-                deckSelect.innerHTML = '';
-                data.decks.forEach(d => {
-                    const opt = document.createElement('option');
-                    opt.value = d;
-                    opt.textContent = d;
-                    // Default to Italian if it exists
-                    if (d === 'Italian') opt.selected = true;
-                    deckSelect.appendChild(opt);
-                });
+            const decks = await invokeAnki('deckNames');
+            const models = await invokeAnki('modelNames');
+            
+            // Populate decks
+            deckSelect.innerHTML = '';
+            decks.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = d;
+                // Default to Italian if it exists
+                if (d === 'Italian') opt.selected = true;
+                deckSelect.appendChild(opt);
+            });
 
-                // Populate models
-                modelSelect.innerHTML = '';
-                data.models.forEach(m => {
-                    const opt = document.createElement('option');
-                    opt.value = m;
-                    opt.textContent = m;
-                    // Default to Italian Vocab if it exists
-                    if (m === 'Italian Vocab') opt.selected = true;
-                    modelSelect.appendChild(opt);
-                });
-            }
+            // Populate models
+            modelSelect.innerHTML = '';
+            models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = m;
+                // Default to Italian Vocab if it exists
+                if (m === 'Italian Vocab') opt.selected = true;
+                modelSelect.appendChild(opt);
+            });
         } catch (e) {
             console.error("Could not fetch Anki info", e);
         }
@@ -351,35 +441,22 @@ document.addEventListener('DOMContentLoaded', () => {
     
     async function checkAnkiStatus() {
         try {
-            const response = await fetch('/api/status');
-            const data = await response.json();
+            await invokeAnki('version');
             
             const isGenerating = !progressContainer.classList.contains('hidden');
             
-            if (data.status === 'online') {
-                if (ankiStatusIndicator.className.includes('status-offline')) {
-                    // Just came online, fetch decks!
-                    fetchAnkiInfo();
-                }
-                ankiStatusIndicator.className = 'status-indicator status-online';
-                ankiStatusIndicator.title = 'Anki is connected and running';
-                
-                document.getElementById('wordForm').classList.remove('anki-offline');
-                if (!isGenerating) {
-                    wordInput.disabled = false;
-                    generateBtn.disabled = false;
-                    wordInput.placeholder = "Enter a word or phrase...";
-                }
-            } else {
-                ankiStatusIndicator.className = 'status-indicator status-offline';
-                ankiStatusIndicator.title = 'Anki is not running. Please open Anki.';
-                
-                document.getElementById('wordForm').classList.add('anki-offline');
-                if (!isGenerating) {
-                    wordInput.disabled = true;
-                    generateBtn.disabled = true;
-                    wordInput.placeholder = "Please open Anki first... 🔌";
-                }
+            if (ankiStatusIndicator.className.includes('status-offline')) {
+                // Just came online, fetch decks!
+                fetchAnkiInfo();
+            }
+            ankiStatusIndicator.className = 'status-indicator status-online';
+            ankiStatusIndicator.title = 'Anki is connected and running';
+            
+            document.getElementById('wordForm').classList.remove('anki-offline');
+            if (!isGenerating) {
+                wordInput.disabled = false;
+                generateBtn.disabled = false;
+                wordInput.placeholder = "Enter a word or phrase...";
             }
         } catch (err) {
             console.error("Anki polling error:", err);
