@@ -166,6 +166,8 @@ def process_word(user_input: str, language: str, api_keys: dict, custom_prompt: 
     user_input = user_input.strip()
     print(f"→ {user_input} ({language})")
     try:
+        # Force flush WSGI/Nginx buffers with 1024 bytes of empty space
+        yield ": " + (" " * 1024) + "\n\n"
         yield f"data: {json.dumps({'status': f'🧠 Asking Gemini to translate {user_input}...'})}\n\n"
         # 1. Ask Gemini to generate the content based on the prompt
         data = generate_content(user_input, language, api_keys.get("gemini"), custom_prompt=custom_prompt, translation_lang=translation_lang)
