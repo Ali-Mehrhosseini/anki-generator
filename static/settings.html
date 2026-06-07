@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anki Generator Settings</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 20px;">
+                <a href="/" class="small-btn" style="text-decoration: none;">← Back</a>
+                <h1 id="mainTitle" style="margin: 0; font-size: 2.2rem;">⚙️ Settings</h1>
+            </div>
+            <p>Configure your API keys, languages, and AnkiConnect.</p>
+        </header>
+
+        <div id="corsNotice" class="minimal-panel" style="background: rgba(255, 165, 0, 0.1); border: 1px solid rgba(255, 165, 0, 0.3); margin-bottom: 20px; text-align: left;">
+            <h4 style="margin: 0 0 10px 0; color: #ffa500;">🔌 Connect to your Anki App</h4>
+            <p style="font-size: 14px; margin: 0 0 10px 0; opacity: 0.9;">This website sends AI-generated flashcards directly to the Anki application running on your computer. To allow this connection, please do the following one-time setup:</p>
+            <ol style="font-size: 14px; opacity: 0.9; padding-left: 20px; margin-bottom: 15px; line-height: 1.5;">
+                <li>Open the <b>Anki</b> app on your computer.</li>
+                <li>Go to <b>Tools</b> at the top menu → <b>Add-ons</b>.</li>
+                <li>Select <b>AnkiConnect</b> from the list and click the <b>Config</b> button.</li>
+                <li>Scroll down to <code>webCorsOriginList</code> and add a <code>"*"</code> so it looks exactly like the box below.</li>
+                <li>Restart your Anki app.</li>
+            </ol>
+            <pre style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-size: 12px; margin: 0 0 15px 0; font-family: monospace;">"webCorsOriginList": [
+    "http://localhost",
+    "*"
+]</pre>
+            <div style="display: flex; justify-content: center;">
+                <button type="button" class="small-btn" onclick="document.getElementById('corsNotice').style.display='none'; localStorage.setItem('hideCorsNotice', 'true');">Got it! Hide this</button>
+            </div>
+        </div>
+
+        <div class="minimal-panel" id="settingsPanel">
+            <div class="settings-grid">
+                <div class="setting-group">
+                    <label for="languageSelect">Target Language</label>
+                    <select id="languageSelect">
+                        <option value="Italian" selected>Italian</option>
+                        <option value="Spanish">Spanish</option>
+                        <option value="French">French</option>
+                        <option value="German">German</option>
+                        <option value="Japanese">Japanese</option>
+                    </select>
+                    <small class="hint">Changes AI prompt and AWS Polly voice.</small>
+                </div>
+                <div class="setting-group">
+                    <label for="deckSelect">Target Deck</label>
+                    <div class="deck-input-group">
+                        <select id="deckSelect"></select>
+                        <input type="text" id="newDeckInput" placeholder="Or type new deck name" class="hidden">
+                        <button type="button" id="toggleNewDeckBtn" class="small-btn" title="Create new deck">➕</button>
+                    </div>
+                    <small class="hint">Missing decks will be created automatically.</small>
+                </div>
+                <div class="setting-group">
+                    <label for="modelSelect">Note Type</label>
+                    <select id="modelSelect"></select>
+                    <small class="hint">Must contain the required fields (Front, Back, etc).</small>
+                </div>
+                <div class="setting-group">
+                    <label for="translationSelect">Translation Language</label>
+                    <select id="translationSelect">
+                        <option value="Both (English + Persian)" selected>Both (English + Persian)</option>
+                        <option value="English">English Only</option>
+                        <option value="Persian">Persian Only</option>
+                    </select>
+                    <small class="hint">Language of the meaning on the back.</small>
+                </div>
+                <div class="setting-group full-width">
+                    <label for="promptInput">AI Prompt (Advanced)</label>
+                    <textarea id="promptInput" rows="4" placeholder="Loading default prompt..."></textarea>
+                    <div style="text-align: right; margin-top: 4px;">
+                        <button type="button" id="resetPromptBtn" class="small-btn">Reset to Default</button>
+                    </div>
+                </div>
+                
+                <div class="setting-group full-width" style="margin-top: 10px;">
+                    <h4 style="margin: 0 0 8px 0; color: var(--accent-color);">☁️ Cloud API Keys</h4>
+                    <small class="hint" style="display:block; margin-bottom: 10px;">Keys are saved locally in your browser.</small>
+                </div>
+                <div class="setting-group full-width">
+                    <label for="geminiKey">Google Gemini API Key</label>
+                    <input type="password" id="geminiKey" placeholder="AIzaSy..." style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: white;">
+                </div>
+                <div class="setting-group">
+                    <label for="awsAccessKey">AWS Access Key</label>
+                    <input type="text" id="awsAccessKey" placeholder="AKIA..." style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: white;">
+                </div>
+                <div class="setting-group">
+                    <label for="awsSecretKey">AWS Secret Key</label>
+                    <input type="password" id="awsSecretKey" placeholder="..." style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: white;">
+                </div>
+                <div class="setting-group full-width" style="margin-top: 5px; display: flex; align-items: center; justify-content: space-between;">
+                    <button type="button" id="verifyKeysBtn" class="small-btn">Verify Connection</button>
+                    <div id="verifyKeysStatus" style="font-size: 14px; font-weight: 500;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- We will load settings.js to handle the settings logic -->
+    <script src="/settings.js"></script>
+</body>
+</html>

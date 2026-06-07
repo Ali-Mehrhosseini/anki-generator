@@ -51,59 +51,15 @@ async function createAnkiNote(data, audios, deckName, modelName, language) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (localStorage.getItem('hideCorsNotice') === 'true') {
-        const corsNotice = document.getElementById('corsNotice');
-        if (corsNotice) corsNotice.style.display = 'none';
-    }
-
-    const form = document.getElementById('wordForm');
-    const wordInput = document.getElementById('wordInput');
-    const generateBtn = document.getElementById('generateBtn');
-    const btnText = generateBtn.querySelector('.btn-text');
-    const spinner = generateBtn.querySelector('.spinner');
+    const mainConnectionStatus = document.getElementById('mainConnectionStatus');
     
-    const mainTitle = document.getElementById('mainTitle');
-    const languageSelect = document.getElementById('languageSelect');
-    const statusMessage = document.getElementById('statusMessage');
-    
-    // API Keys
-    const geminiKeyInput = document.getElementById('geminiKey');
-    const awsAccessKeyInput = document.getElementById('awsAccessKey');
-    const awsSecretKeyInput = document.getElementById('awsSecretKey');
-    
-    // Load saved API keys
-    if (geminiKeyInput) geminiKeyInput.value = localStorage.getItem('geminiKey') || '';
-    if (awsAccessKeyInput) awsAccessKeyInput.value = localStorage.getItem('awsAccessKey') || '';
-    if (awsSecretKeyInput) awsSecretKeyInput.value = localStorage.getItem('awsSecretKey') || '';
-    
-    // Save API keys on blur
-    const saveKeys = () => {
-        if (geminiKeyInput) localStorage.setItem('geminiKey', geminiKeyInput.value.trim());
-        if (awsAccessKeyInput) localStorage.setItem('awsAccessKey', awsAccessKeyInput.value.trim());
-        if (awsSecretKeyInput) localStorage.setItem('awsSecretKey', awsSecretKeyInput.value.trim());
-    };
-    if (geminiKeyInput) geminiKeyInput.addEventListener('blur', saveKeys);
-    if (awsAccessKeyInput) awsAccessKeyInput.addEventListener('blur', saveKeys);
-    if (awsSecretKeyInput) awsSecretKeyInput.addEventListener('blur', saveKeys);
-    
-    const verifyKeysBtn = document.getElementById('verifyKeysBtn');
-    const verifyKeysStatus = document.getElementById('verifyKeysStatus');
-    if (verifyKeysBtn) {
-        verifyKeysBtn.addEventListener('click', async () => {
-            saveKeys();
-            const gemini = geminiKeyInput ? geminiKeyInput.value.trim() : '';
-            const aws_access = awsAccessKeyInput ? awsAccessKeyInput.value.trim() : '';
-            const aws_secret = awsSecretKeyInput ? awsSecretKeyInput.value.trim() : '';
-            
-            if (!gemini || !aws_access || !aws_secret) {
-                verifyKeysStatus.innerHTML = '<span style="color:var(--error-color)">Missing keys</span>';
-                return;
-            }
-            
-            verifyKeysBtn.disabled = true;
-            verifyKeysBtn.textContent = 'Verifying...';
-            verifyKeysStatus.innerHTML = '';
-            
+    // Auto-verify connection on load
+    const verifyConnection = async () => {
+        const gemini = localStorage.getItem('geminiKey') || '';
+        const aws_access = localStorage.getItem('awsAccessKey') || '';
+        const aws_secret = localStorage.getItem('awsSecretKey') || '';
+        
+        if (gemini && aws_access && aws_secret) {
             try {
                 const response = await fetch('/api/verify-keys', {
                     method: 'POST',
@@ -111,22 +67,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ apiKeys: { gemini, aws_access, aws_secret } })
                 });
                 const data = await response.json();
-                
-                if (data.error) {
-                    verifyKeysStatus.innerHTML = `<span style="color:var(--error-color); display:inline-block; max-width:200px; font-size:11px; line-height:1.2;">❌ ${data.error}</span>`;
-                } else if (data.gemini && data.aws) {
-                    verifyKeysStatus.innerHTML = '<span style="color:#34a853">✅ Connected & Verified!</span>';
-                } else {
-                    verifyKeysStatus.innerHTML = '<span style="color:var(--error-color)">❌ Verification failed</span>';
+                if (!data.error && data.gemini && data.aws) {
+                    if (mainConnectionStatus) {
+                        mainConnectionStatus.classList.remove('hidden');
+                    }
                 }
-            } catch (err) {
-                verifyKeysStatus.innerHTML = '<span style="color:var(--error-color)">❌ Connection error</span>';
-            } finally {
-                verifyKeysBtn.disabled = false;
-                verifyKeysBtn.textContent = 'Verify Connection';
+            } catch (e) {
+                console.error("Auto-verify failed", e);
             }
-        });
-    }
+        }
+    };
+    verifyConnection();
+    
+    const form = document.getElementById('wordForm');
+    const wordInput = document.getElementById('wordInput');
+    const generateBtn = document.getElementById('generateBtn');
+    const statusMessage = document.getElementById('statusMessage');
+    const progressContainer = document.getElementById('progressContainer');
     
     const previewSection = document.getElementById('previewSection');
     const frontHtml = document.getElementById('frontHtml');
@@ -141,7 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!word) return;
 
         // Reset UI
-        document.getElementById('settingsPanel').classList.add('hidden');
         previewSection.classList.add('hidden');
         statusMessage.classList.add('hidden');
         statusMessage.className = '';
@@ -425,15 +381,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Anki Status Polling
     const ankiStatusIndicator = document.getElementById('ankiStatus');
-    const settingsToggleBtn = document.getElementById('settingsToggleBtn');
-    const settingsPanel = document.getElementById('settingsPanel');
-    const deckSelect = document.getElementById('deckSelect');
-    const modelSelect = document.getElementById('modelSelect');
-    const newDeckInput = document.getElementById('newDeckInput');
-    const toggleNewDeckBtn = document.getElementById('toggleNewDeckBtn');
-    
-    const promptInput = document.getElementById('promptInput');
-    const resetPromptBtn = document.getElementById('resetPromptBtn');
 
     const flagCodes = {
         "Italian": "it",
@@ -443,116 +390,59 @@ document.addEventListener('DOMContentLoaded', () => {
         "Japanese": "jp"
     };
 
-    if (languageSelect) {
-        const updateLanguageUI = (lang) => {
-            mainTitle.textContent = `${lang} Anki Generator`;
-            document.title = `${lang} Anki Generator`;
-            wordInput.placeholder = `Enter a ${lang} word or English phrase...`;
+    const updateLanguageUI = (lang) => {
+        mainTitle.textContent = `${lang} Anki Generator`;
+        document.title = `${lang} Anki Generator`;
+        wordInput.placeholder = `Enter a ${lang} word or English phrase...`;
+        
+        // Update cute banner
+        const flagImageEl = document.getElementById('flagImage');
+        const flagTextEl = document.getElementById('flagText');
+        const flagBannerEl = document.getElementById('flagBanner');
+        
+        if (flagImageEl && flagTextEl && flagBannerEl) {
+            const code = flagCodes[lang] || "it";
+            flagImageEl.src = `https://flagcdn.com/w160/${code}.png`;
+            flagImageEl.alt = `${lang} Flag`;
+            flagTextEl.textContent = lang;
             
-            // Update cute banner
-            const flagImageEl = document.getElementById('flagImage');
-            const flagTextEl = document.getElementById('flagText');
-            const flagBannerEl = document.getElementById('flagBanner');
-            
-            if (flagImageEl && flagTextEl && flagBannerEl) {
-                const code = flagCodes[lang] || "it";
-                flagImageEl.src = `https://flagcdn.com/w160/${code}.png`;
-                flagImageEl.alt = `${lang} Flag`;
-                flagTextEl.textContent = lang;
-                
-                // Retrigger cute bounce animation
-                flagBannerEl.classList.remove('bounce-anim');
-                void flagBannerEl.offsetWidth; // trigger reflow
-                flagBannerEl.classList.add('bounce-anim');
-            }
-        };
+            // Retrigger cute bounce animation
+            flagBannerEl.classList.remove('bounce-anim');
+            void flagBannerEl.offsetWidth; // trigger reflow
+            flagBannerEl.classList.add('bounce-anim');
+        }
+    };
 
-        languageSelect.addEventListener('change', (e) => {
-            updateLanguageUI(e.target.value);
+    // Initialize on load
+    const savedLang = localStorage.getItem('language') || 'Italian';
+    updateLanguageUI(savedLang);
+
+    // Custom Dropdown Logic
+    const flagBannerEl = document.getElementById('flagBanner');
+    const languageDropdown = document.getElementById('languageDropdown');
+    
+    if (flagBannerEl && languageDropdown) {
+        flagBannerEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            languageDropdown.classList.toggle('hidden');
         });
 
-        // Initialize on load
-        updateLanguageUI(languageSelect.value);
+        document.addEventListener('click', () => {
+            if (!languageDropdown.classList.contains('hidden')) {
+                languageDropdown.classList.add('hidden');
+            }
+        });
 
-        // Custom Dropdown Logic
-        const flagBannerEl = document.getElementById('flagBanner');
-        const languageDropdown = document.getElementById('languageDropdown');
-        
-        if (flagBannerEl && languageDropdown) {
-            flagBannerEl.addEventListener('click', (e) => {
-                e.stopPropagation();
-                languageDropdown.classList.toggle('hidden');
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const newLang = item.getAttribute('data-lang');
+                localStorage.setItem('language', newLang);
+                updateLanguageUI(newLang);
             });
-
-            document.addEventListener('click', () => {
-                if (!languageDropdown.classList.contains('hidden')) {
-                    languageDropdown.classList.add('hidden');
-                }
-            });
-
-            document.querySelectorAll('.dropdown-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const newLang = item.getAttribute('data-lang');
-                    languageSelect.value = newLang; // Sync with settings panel
-                    updateLanguageUI(newLang);
-                });
-            });
-        }
+        });
     }
 
-    let isCreatingNewDeck = false;
 
-    settingsToggleBtn.addEventListener('click', () => {
-        settingsPanel.classList.toggle('hidden');
-    });
-
-    toggleNewDeckBtn.addEventListener('click', () => {
-        isCreatingNewDeck = !isCreatingNewDeck;
-        if (isCreatingNewDeck) {
-            deckSelect.classList.add('hidden');
-            newDeckInput.classList.remove('hidden');
-            toggleNewDeckBtn.textContent = '❌';
-            toggleNewDeckBtn.title = 'Cancel new deck';
-            newDeckInput.focus();
-        } else {
-            deckSelect.classList.remove('hidden');
-            newDeckInput.classList.add('hidden');
-            toggleNewDeckBtn.textContent = '➕';
-            toggleNewDeckBtn.title = 'Create new deck';
-            newDeckInput.value = '';
-        }
-    });
-
-    async function fetchAnkiInfo() {
-        try {
-            const decks = await invokeAnki('deckNames');
-            const models = await invokeAnki('modelNames');
-            
-            // Populate decks
-            deckSelect.innerHTML = '';
-            decks.forEach(d => {
-                const opt = document.createElement('option');
-                opt.value = d;
-                opt.textContent = d;
-                // Default to Italian if it exists
-                if (d === 'Italian') opt.selected = true;
-                deckSelect.appendChild(opt);
-            });
-
-            // Populate models
-            modelSelect.innerHTML = '';
-            models.forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m;
-                opt.textContent = m;
-                // Default to Italian Vocab if it exists
-                if (m === 'Italian Vocab') opt.selected = true;
-                modelSelect.appendChild(opt);
-            });
-        } catch (e) {
-            console.error("Could not fetch Anki info", e);
-        }
-    }
     
     async function checkAnkiStatus() {
         try {
@@ -561,8 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isGenerating = !progressContainer.classList.contains('hidden');
             
             if (ankiStatusIndicator.className.includes('status-offline')) {
-                // Just came online, fetch decks!
-                fetchAnkiInfo();
+                // Just came online
             }
             ankiStatusIndicator.className = 'status-indicator status-online';
             ankiStatusIndicator.title = 'Anki is connected and running';
@@ -588,29 +477,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function loadDefaultPrompt() {
-        try {
-            const res = await fetch('/api/prompt');
-            const data = await res.json();
-            if (data.prompt) {
-                promptInput.value = data.prompt;
-                // Store the default prompt to reset later
-                window.__defaultPrompt = data.prompt;
-            }
-        } catch (err) {
-            console.error("Failed to load prompt", err);
-        }
-    }
 
-    resetPromptBtn.addEventListener('click', () => {
-        if (window.__defaultPrompt) {
-            promptInput.value = window.__defaultPrompt;
-        }
-    });
 
     // Check immediately on load, then every 5 seconds
     checkAnkiStatus();
-    loadDefaultPrompt();
-    fetchAnkiInfo();
     setInterval(checkAnkiStatus, 5000);
 });

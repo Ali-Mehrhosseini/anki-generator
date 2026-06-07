@@ -8,6 +8,10 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 def index():
     return send_from_directory('static', 'index.html')
 
+@app.route('/settings')
+def settings():
+    return send_from_directory('static', 'settings.html')
+
 
 
 @app.route('/api/prompt', methods=['GET'])

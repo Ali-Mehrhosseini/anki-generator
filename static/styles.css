@@ -628,6 +628,21 @@ textarea:focus {
     color: var(--text-secondary);
 }
 
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
+.blink-status {
+    animation: blink 2s infinite ease-in-out;
+    background: rgba(52, 168, 83, 0.1);
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(52, 168, 83, 0.3);
+    display: inline-block;
+}
+
 .dropdown-arrow {
     font-size: 10px;
     margin-left: 6px;
