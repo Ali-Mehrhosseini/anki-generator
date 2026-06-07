@@ -16,19 +16,19 @@ async function invokeAnki(action, params = {}) {
 
 async function createAnkiNote(data, audios, deckName, modelName, language) {
     const word = data.data.word;
-    
+
     // Auto-create deck if it doesn't exist
     const existingDecks = await invokeAnki('deckNames');
     if (!existingDecks.includes(deckName)) {
         await invokeAnki('createDeck', { deck: deckName });
     }
-    
+
     // store every audio file
     for (const [suffix, base64Data] of Object.entries(audios)) {
         const filename = `${word}${suffix}.mp3`;
         await invokeAnki('storeMediaFile', { filename: filename, data: base64Data });
     }
-    
+
     // Add note
     const noteId = await invokeAnki('addNote', {
         note: {
@@ -46,24 +46,24 @@ async function createAnkiNote(data, audios, deckName, modelName, language) {
             options: { allowDuplicate: false }
         }
     });
-    
+
     return noteId;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const mainConnectionStatus = document.getElementById('mainConnectionStatus');
-    
+
     // Auto-verify connection on load
     const verifyConnection = async () => {
         const gemini = localStorage.getItem('geminiKey') || '';
         const aws_access = localStorage.getItem('awsAccessKey') || '';
         const aws_secret = localStorage.getItem('awsSecretKey') || '';
-        
+
         if (gemini && aws_access && aws_secret) {
             try {
                 const response = await fetch('/api/verify-keys', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ apiKeys: { gemini, aws_access, aws_secret } })
                 });
                 const data = await response.json();
@@ -78,13 +78,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     verifyConnection();
-    
+
     const form = document.getElementById('wordForm');
     const wordInput = document.getElementById('wordInput');
     const generateBtn = document.getElementById('generateBtn');
     const statusMessage = document.getElementById('statusMessage');
     const progressContainer = document.getElementById('progressContainer');
-    
+
     const previewSection = document.getElementById('previewSection');
     const frontHtml = document.getElementById('frontHtml');
     const backHtml = document.getElementById('backHtml');
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         const word = wordInput.value.trim();
         if (!word) return;
 
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusMessage.className = '';
         frontAudioControls.innerHTML = '';
         backAudioControls.innerHTML = '';
-        
+
         let deckName = isCreatingNewDeck ? newDeckInput.value.trim() : deckSelect.value;
         let modelName = modelSelect.value;
         let language = languageSelect ? languageSelect.value : 'Italian';
@@ -113,10 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             wordInput.disabled = true;
             generateBtn.disabled = true;
-            
+
             const query = `"${word}" "deck:${deckName}"`;
             const notes = await invokeAnki('findNotes', { query });
-            
+
             if (notes && notes.length > 0) {
                 wordInput.disabled = false;
                 generateBtn.disabled = false;
@@ -132,13 +132,13 @@ document.addEventListener('DOMContentLoaded', () => {
         setLoading(true);
         try {
             saveKeys(); // Ensure keys are saved before sending
-            
+
             const apiKeys = {
                 gemini: geminiKeyInput ? geminiKeyInput.value.trim() : '',
                 aws_access: awsAccessKeyInput ? awsAccessKeyInput.value.trim() : '',
                 aws_secret: awsSecretKeyInput ? awsSecretKeyInput.value.trim() : ''
             };
-            
+
             if (!apiKeys.gemini || !apiKeys.aws_access || !apiKeys.aws_secret) {
                 setLoading(false, false);
                 showError("Please enter your API Keys in the Settings panel.");
@@ -162,18 +162,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const decoder = new TextDecoder("utf-8");
             const activityLog = document.getElementById('activityLog');
             activityLog.innerHTML = '';
-            
+
             let finalData = null;
             let buffer = '';
-            
+
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                
+
                 buffer += decoder.decode(value, { stream: true });
                 let lines = buffer.split('\n\n');
                 buffer = lines.pop(); // keep the incomplete part in buffer
-                
+
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
                         const payloadStr = line.substring(6);
@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     prev.classList.remove('loading');
                                     prev.classList.add('completed');
                                 }
-                                
+
                                 const item = document.createElement('div');
                                 item.className = 'activity-item loading';
                                 item.textContent = parsed.status;
@@ -217,23 +217,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!finalData) {
                 throw new Error("Stream closed without final result.");
             }
-            
+
             const data = finalData;
 
             if (data.success) {
                 try {
                     // Now save it to Anki locally!
                     const noteId = await createAnkiNote(data, data.audios, deckName, modelName, language);
-                    
+
                     setLoading(false, true);
                     showSuccess(`Successfully generated and added note ID: ${noteId}`);
-                    
+
                     // Strip [sound:...] tags from the front entirely
                     const cleanFront = data.data.front_html.replace(/\[sound:.*?\.mp3\]/g, '');
-                    
+
                     let cleanBack = data.data.back_html;
                     const word = data.data.word;
-                    
+
                     // Replace conjugation audio tags [sound:word_1.mp3] with inline play buttons!
                     const playIconSvg = `<svg viewBox="0 0 24 24" width="20" height="20" style="vertical-align: text-bottom; cursor: pointer; fill: var(--accent-color); margin-left: 6px; transition: transform 0.2s;"><path d="M8 5v14l11-7z"/></svg>`;
                     for (let i = 1; i <= 6; i++) {
@@ -243,13 +243,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             cleanBack = cleanBack.replace(soundTag, btnHtml);
                         }
                     }
-                    
+
                     // Strip any remaining sound tags from the back
                     cleanBack = cleanBack.replace(/\[sound:.*?\.mp3\]/g, '');
-                    
+
                     frontHtml.innerHTML = cleanFront;
                     backHtml.innerHTML = cleanBack;
-                    
+
                     // Attach click handlers
                     window.__audioMap = data.audios;
                     backHtml.querySelectorAll('.inline-audio').forEach(btn => {
@@ -258,15 +258,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             playBase64Audio(window.__audioMap[btn.dataset.suffix]);
                         };
                     });
-                    
+
                     renderAudioControls(data.audios);
 
                     previewSection.classList.remove('hidden');
                     wordInput.classList.remove('error-shake');
-                    
+
                     // Clear the input for the next word
                     wordInput.value = '';
-                    
+
                     // Scroll smoothly to the preview section
                     setTimeout(() => {
                         previewSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -327,11 +327,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function showSuccess(msg) {
         clearTimeout(statusTimeout);
         clearTimeout(fadeOutTimeout);
-        
+
         statusMessage.textContent = msg;
         statusMessage.className = 'success show-status';
         statusMessage.classList.remove('hidden');
-        
+
         statusTimeout = setTimeout(() => {
             statusMessage.classList.add('hide-status');
             fadeOutTimeout = setTimeout(() => {
@@ -394,18 +394,18 @@ document.addEventListener('DOMContentLoaded', () => {
         mainTitle.textContent = `${lang} Anki Generator`;
         document.title = `${lang} Anki Generator`;
         wordInput.placeholder = `Enter a ${lang} word or English phrase...`;
-        
+
         // Update cute banner
         const flagImageEl = document.getElementById('flagImage');
         const flagTextEl = document.getElementById('flagText');
         const flagBannerEl = document.getElementById('flagBanner');
-        
+
         if (flagImageEl && flagTextEl && flagBannerEl) {
             const code = flagCodes[lang] || "it";
             flagImageEl.src = `https://flagcdn.com/w160/${code}.png`;
             flagImageEl.alt = `${lang} Flag`;
             flagTextEl.textContent = lang;
-            
+
             // Retrigger cute bounce animation
             flagBannerEl.classList.remove('bounce-anim');
             void flagBannerEl.offsetWidth; // trigger reflow
@@ -420,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Custom Dropdown Logic
     const flagBannerEl = document.getElementById('flagBanner');
     const languageDropdown = document.getElementById('languageDropdown');
-    
+
     if (flagBannerEl && languageDropdown) {
         flagBannerEl.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -443,19 +443,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    
+
     async function checkAnkiStatus() {
         try {
             await invokeAnki('version');
-            
+
             const isGenerating = !progressContainer.classList.contains('hidden');
-            
+
             if (ankiStatusIndicator.className.includes('status-offline')) {
                 // Just came online
             }
             ankiStatusIndicator.className = 'status-indicator status-online';
             ankiStatusIndicator.title = 'Anki is connected and running';
-            
+
             document.getElementById('wordForm').classList.remove('anki-offline');
             if (!isGenerating) {
                 wordInput.disabled = false;
@@ -466,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Anki polling error:", err);
             ankiStatusIndicator.className = 'status-indicator status-offline';
             ankiStatusIndicator.title = "AnkiConnect Offline";
-            
+
             document.getElementById('wordForm').classList.add('anki-offline');
             const isGenerating = !progressContainer.classList.contains('hidden');
             if (!isGenerating) {
