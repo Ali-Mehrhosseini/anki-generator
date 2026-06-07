@@ -299,23 +299,23 @@ button:active {
 }
 
 button:disabled {
-    opacity: 0.3;
+    opacity: 0.5;
     cursor: not-allowed;
-    background: transparent;
-    color: var(--text-primary);
+    background: rgba(128, 128, 128, 0.1);
+    color: var(--text-secondary);
     border-color: var(--border-color);
 }
 
 /* Offline state styling */
 .anki-offline input {
-    background: rgba(127, 127, 127, 0.1);
-    color: rgba(0, 0, 0, 0.5);
+    background: rgba(128, 128, 128, 0.1);
+    color: var(--text-secondary);
     cursor: not-allowed;
-    border-color: transparent;
+    border-color: var(--border-color);
 }
 
 .anki-offline input::placeholder {
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--text-secondary);
 }
 
 .anki-offline button#generateBtn {
