@@ -24,12 +24,13 @@
 
 body {
     font-family: 'Outfit', sans-serif;
-    background-color: var(--bg-color);
-    background-image: url('antigravity_mesh_bg.png?v=1');
-    background-size: cover;
-    background-position: center;
+    background-color: #fafbfe;
+    background-image: 
+        radial-gradient(at 80% 0%, hsla(228,100%,96%,1) 0px, transparent 50%),
+        radial-gradient(at 0% 50%, hsla(210,100%,97%,1) 0px, transparent 50%),
+        radial-gradient(at 80% 100%, hsla(240,100%,97%,1) 0px, transparent 50%),
+        radial-gradient(at 0% 0%, hsla(200,100%,96%,1) 0px, transparent 50%);
     background-attachment: fixed;
-    background-blend-mode: normal;
     color: var(--text-primary);
     min-height: 100vh;
     display: flex;
