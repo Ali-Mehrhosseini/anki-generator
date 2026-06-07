@@ -16,6 +16,18 @@
     --shadow-md: none;
 }
 
+:root.light-mode {
+    --bg-color: #f8f9fa;
+    --surface-color: rgba(255, 255, 255, 0.95);
+    --surface-variant: rgba(245, 245, 245, 0.85);
+    --text-primary: #111111;
+    --text-secondary: #555555;
+    --border-color: rgba(0, 0, 0, 0.2);
+    --accent-color: #000000;
+    --accent-hover: #333333;
+    --input-bg: rgba(0, 0, 0, 0.05);
+}
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -52,12 +64,13 @@ header {
     display: inline-flex;
     align-items: center;
     gap: 12px;
-    background: rgba(255, 255, 255, 0.85);
+    background: var(--surface-color);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     padding: 8px 24px 8px 12px;
     border-radius: 9999px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    box-shadow: none;
+    border: 1px solid var(--border-color);
     margin-bottom: 2rem;
     font-size: 1.1rem;
     font-weight: 700;
@@ -178,7 +191,7 @@ header p {
 input {
     flex: 1;
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid var(--border-color);
     border-radius: 0;
     padding: 1.25rem 2rem;
     color: var(--text-primary);
@@ -190,19 +203,19 @@ input {
 }
 
 input::placeholder {
-    color: rgba(255, 255, 255, 0.4);
+    color: var(--text-secondary);
     font-weight: 400;
 }
 
 input:focus {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: #ffffff;
+    background: var(--input-bg);
+    border-color: var(--text-primary);
 }
 
 button {
     background: transparent;
-    color: #ffffff;
-    border: 1px solid #ffffff;
+    color: var(--text-primary);
+    border: 1px solid var(--text-primary);
     border-radius: 0;
     padding: 1.25rem 2.5rem;
     font-size: 1.1rem;
@@ -220,14 +233,14 @@ button {
 }
 
 button:hover {
-    background: #ffffff;
-    color: #000000;
+    background: var(--text-primary);
+    color: var(--bg-color);
     transform: translateY(-2px);
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 15px var(--border-color);
 }
 
 button:active {
-    background: #cccccc;
+    background: var(--text-secondary);
     box-shadow: none;
 }
 
@@ -235,8 +248,8 @@ button:disabled {
     opacity: 0.3;
     cursor: not-allowed;
     background: transparent;
-    color: #ffffff;
-    border-color: rgba(255, 255, 255, 0.3);
+    color: var(--text-primary);
+    border-color: var(--border-color);
 }
 
 /* Offline state styling */
@@ -504,35 +517,40 @@ button:disabled {
     box-shadow: none;
 }
 
-.settings-corner-btn {
+.top-right-nav {
     position: fixed;
     top: 24px;
     right: 24px;
+    display: flex;
+    gap: 12px;
+    z-index: 1000;
+}
+
+.settings-corner-btn {
     font-size: 0.95rem;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Space Grotesk', sans-serif;
     font-weight: 600;
     color: var(--text-primary);
-    background: var(--surface-color);
-    border: none;
-    border-radius: 9999px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 0;
     padding: 12px 24px;
     cursor: pointer;
     opacity: 0.9;
     transition: all 0.3s ease;
-    z-index: 1000;
     display: flex;
     align-items: center;
     gap: 8px;
-    box-shadow: var(--shadow-sm);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .settings-corner-btn:hover {
     opacity: 1;
-    background: rgba(255, 255, 255, 1);
+    background: var(--text-primary);
+    color: var(--bg-color);
     transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+    border-color: var(--text-primary);
 }
 
 .settings-panel {
@@ -670,13 +688,13 @@ textarea:focus {
     left: 50%;
     transform: translateX(-50%);
     margin-top: 12px;
-    background: rgba(255, 255, 255, 0.95);
+    background: var(--surface-color);
     border: 1px solid var(--border-color);
-    border-radius: 16px;
+    border-radius: 0;
     padding: 8px;
     min-width: 160px;
     z-index: 100;
-    box-shadow: var(--shadow-md);
+    box-shadow: none;
     backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
@@ -705,7 +723,7 @@ textarea:focus {
 }
 
 .dropdown-item:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--input-bg);
     transform: translateX(4px);
 }
 
