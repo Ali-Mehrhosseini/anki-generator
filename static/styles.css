@@ -999,8 +999,8 @@ textarea:focus {
 
 .mobile-dismiss-btn {
     background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
+    border: 1px solid rgba(255, 200, 50, 0.4);
+    color: #ffc832;
     padding: 0.75rem 1.5rem;
     border-radius: 12px;
     font-size: 0.85rem;
@@ -1013,11 +1013,22 @@ textarea:focus {
 }
 
 .mobile-dismiss-btn:hover {
-    color: var(--text-primary);
-    border-color: var(--text-secondary);
-    background: var(--surface-color);
+    color: #000;
+    background: #ffc832;
+    border-color: #ffc832;
     transform: none;
     box-shadow: none;
+}
+
+:root.light-mode .mobile-dismiss-btn {
+    color: #b58900;
+    border-color: rgba(181, 137, 0, 0.4);
+}
+
+:root.light-mode .mobile-dismiss-btn:hover {
+    color: #fff;
+    background: #b58900;
+    border-color: #b58900;
 }
 
 /* ======================================
