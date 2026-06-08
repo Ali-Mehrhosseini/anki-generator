@@ -438,6 +438,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             ankiStatusIndicator.className = 'status-indicator status-online';
             ankiStatusIndicator.title = 'Anki is connected and running';
+            
+            const cloudNotice = document.getElementById('ankiCloudNotice');
+            if (cloudNotice) cloudNotice.classList.add('hidden');
 
             document.getElementById('wordForm').classList.remove('anki-offline');
             if (!isGenerating) {
@@ -449,6 +452,9 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Anki polling error:", err);
             ankiStatusIndicator.className = 'status-indicator status-offline';
             ankiStatusIndicator.title = "AnkiConnect Offline";
+
+            const cloudNotice = document.getElementById('ankiCloudNotice');
+            if (cloudNotice) cloudNotice.classList.remove('hidden');
 
             document.getElementById('wordForm').classList.add('anki-offline');
             const isGenerating = !progressContainer.classList.contains('hidden');
