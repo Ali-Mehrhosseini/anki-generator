@@ -440,7 +440,13 @@ document.addEventListener('DOMContentLoaded', () => {
             ankiStatusIndicator.title = 'Anki is connected and running';
             
             const cloudNotice = document.getElementById('ankiCloudNotice');
-            if (cloudNotice) cloudNotice.classList.add('hidden');
+            if (cloudNotice && !cloudNotice.classList.contains('hidden') && !cloudNotice.dataset.hiding) {
+                cloudNotice.dataset.hiding = "true";
+                setTimeout(() => {
+                    cloudNotice.classList.add('hidden');
+                    cloudNotice.dataset.hiding = "";
+                }, 3000);
+            }
 
             document.getElementById('wordForm').classList.remove('anki-offline');
             if (!isGenerating) {
