@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anki Generator Settings</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=17">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="/favicon.png">
     <script>
@@ -94,6 +94,44 @@
                     </select>
                     <small class="hint">Language of the meaning on the back.</small>
                 </div>
+                <div class="setting-group full-width learning-features-settings">
+                    <div>
+                        <h4 style="margin:0 0 4px;color:var(--accent-color);">Learning features</h4>
+                        <small class="hint">Each addition can be disabled independently for future notes.</small>
+                    </div>
+                    <div class="learning-feature-list">
+                        <label class="learning-feature-row" for="productionCardToggle">
+                            <span class="learning-feature-copy">
+                                <strong>Production recall card</strong>
+                                <small>Creates a second card from the same note: meaning and sentence gap → target-language answer.</small>
+                            </span>
+                            <input class="learning-feature-checkbox" type="checkbox" id="productionCardToggle" checked>
+                            <span class="learning-feature-switch" aria-hidden="true"></span>
+                        </label>
+                        <label class="learning-feature-row" for="commonPhrasesToggle">
+                            <span class="learning-feature-copy">
+                                <strong>Common phrases</strong>
+                                <small>Adds only one or two useful chunks containing the word.</small>
+                            </span>
+                            <input class="learning-feature-checkbox" type="checkbox" id="commonPhrasesToggle" checked>
+                            <span class="learning-feature-switch" aria-hidden="true"></span>
+                        </label>
+                        <label class="learning-feature-row" for="smartGrammarToggle">
+                            <span class="learning-feature-copy">
+                                <strong>Smart Italian grammar</strong>
+                                <small>Shows only the article, verb pattern, agreement, or related form that applies.</small>
+                            </span>
+                            <input class="learning-feature-checkbox" type="checkbox" id="smartGrammarToggle" checked>
+                            <span class="learning-feature-switch" aria-hidden="true"></span>
+                        </label>
+                    </div>
+                    <div class="learning-feature-actions">
+                        <button type="button" id="useOriginalCardBtn" class="small-btn">Use original cards for new words</button>
+                        <button type="button" id="revertLearningFeaturesBtn" class="small-btn danger-outline-btn">Revert added features in Anki…</button>
+                    </div>
+                    <small class="hint">Switches affect new notes. Revert removes these three app-owned additions from existing notes in the selected note type while keeping recognition cards, Word Family, and audio.</small>
+                    <div id="learningFeatureStatus" class="learning-feature-status" aria-live="polite"></div>
+                </div>
                 <div class="setting-group full-width">
                     <label for="promptInput">AI Prompt (Advanced)</label>
                     <textarea id="promptInput" rows="4" placeholder="Loading default prompt..."></textarea>
@@ -127,7 +165,7 @@
     </div>
 
     <!-- We will load settings.js to handle the settings logic -->
-    <script src="/settings.js"></script>
+    <script src="/settings.js?v=4"></script>
     <script>
         const themeToggleBtn = document.getElementById('themeToggleBtn');
         if (themeToggleBtn) {

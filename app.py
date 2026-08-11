@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory, Response
 from main import process_word
+import hashlib
 import os
 
 app = Flask(__name__, static_folder='static', static_url_path='')
@@ -17,7 +18,8 @@ def settings():
 @app.route('/api/prompt', methods=['GET'])
 def get_prompt():
     from main import SYSTEM_INSTRUCTION_TEMPLATE
-    return jsonify({"prompt": SYSTEM_INSTRUCTION_TEMPLATE}), 200
+    prompt_version = hashlib.sha256(SYSTEM_INSTRUCTION_TEMPLATE.encode('utf-8')).hexdigest()
+    return jsonify({"prompt": SYSTEM_INSTRUCTION_TEMPLATE, "version": prompt_version}), 200
 
 @app.route('/api/verify-keys', methods=['POST'])
 def verify_keys():
@@ -38,6 +40,8 @@ def generate():
     language = data.get('language', 'Italian')
     custom_prompt = data.get('prompt')
     translation_lang = data.get('translationLang', 'Both (English + Persian)')
+    feature_options = data.get('features')
+    selected_interpretation = data.get('selectedInterpretation')
     api_keys = data.get('apiKeys', {})
     
     if not word:
@@ -45,7 +49,15 @@ def generate():
         return Response(f"data: {json.dumps({'error': 'No word provided'})}\n\n", mimetype='text/event-stream')
         
     return Response(
-        process_word(word, language=language, api_keys=api_keys, custom_prompt=custom_prompt, translation_lang=translation_lang),
+        process_word(
+            word,
+            language=language,
+            api_keys=api_keys,
+            custom_prompt=custom_prompt,
+            translation_lang=translation_lang,
+            feature_options=feature_options,
+            selected_interpretation=selected_interpretation,
+        ),
         mimetype='text/event-stream',
         headers={
             'X-Accel-Buffering': 'no',
@@ -55,4 +67,4 @@ def generate():
     )
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True, port=5000)
+    app.run(host='0.0.0.0', debug=True, port=5001)

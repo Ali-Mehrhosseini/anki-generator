@@ -1,5 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
 
+@font-face {
+    font-family: "AnkiVazirmatn";
+    src: url("fonts/_Vazirmatn-Regular.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "AnkiVazirmatn";
+    src: url("fonts/_Vazirmatn-SemiBold.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+}
+
 :root {
     --bg-color: #050505;
     --surface-color: rgba(255, 255, 255, 0.03);
@@ -306,6 +322,101 @@ button:disabled {
     border-color: var(--border-color);
 }
 
+.meaning-choice-panel {
+    margin-top: 1.25rem;
+    padding: 1.4rem;
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    background: rgba(127, 127, 127, 0.08);
+    text-align: left;
+    animation: slideUpFadeIn 0.35s ease forwards;
+}
+
+.meaning-choice-eyebrow {
+    margin-bottom: 0.35rem;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.meaning-choice-panel h2 {
+    margin: 0;
+    font-size: 1.35rem;
+}
+
+.meaning-choice-help {
+    margin: 0.4rem 0 1rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.meaning-choice-options {
+    display: grid;
+    gap: 0.75rem;
+}
+
+button.meaning-choice-option {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    padding: 1rem 1.1rem;
+    border-radius: 14px;
+    text-align: left;
+}
+
+button.meaning-choice-option:hover {
+    transform: translateY(-1px);
+}
+
+.meaning-choice-option-top {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.35rem;
+}
+
+.meaning-choice-headword {
+    font-size: 1.15rem;
+    font-weight: 600;
+}
+
+.meaning-choice-part {
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    text-transform: capitalize;
+}
+
+.meaning-choice-meaning {
+    font-size: 0.95rem;
+}
+
+.meaning-choice-persian,
+.meaning-choice-explanation {
+    margin-top: 0.25rem;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.meaning-choice-persian {
+    direction: rtl;
+    text-align: left;
+}
+
+button.meaning-choice-cancel {
+    min-width: 0;
+    margin-top: 0.85rem;
+    padding: 0.7rem 1rem;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--text-secondary);
+}
+
 /* Offline state styling */
 .anki-offline input {
     background: rgba(128, 128, 128, 0.1);
@@ -503,6 +614,30 @@ button:disabled {
     border-radius: 0;
 }
 
+.production-preview-details {
+    margin-top: 1.25rem;
+}
+
+.production-preview-details summary {
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+}
+
+.production-preview-details[open] summary {
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.production-card-container {
+    gap: 1rem;
+}
+
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
@@ -528,6 +663,11 @@ button:disabled {
     gap: 0.75rem;
     justify-content: center;
     flex-wrap: wrap;
+}
+
+.audio-controls:empty {
+    display: none;
+    margin-top: 0;
 }
 
 .play-audio-btn {
@@ -649,6 +789,122 @@ button:disabled {
 
 .setting-group.full-width {
     grid-column: 1 / -1;
+}
+
+.learning-features-settings {
+    gap: 0.85rem;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: rgba(127, 127, 127, 0.04);
+}
+
+.learning-feature-list {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.learning-feature-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0.8rem;
+    border: 1px solid rgba(127, 127, 127, 0.14);
+    border-radius: 10px;
+    background: rgba(127, 127, 127, 0.045);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.learning-feature-row:hover,
+.learning-feature-row:focus-within {
+    border-color: rgba(147, 112, 219, 0.55);
+    background: rgba(147, 112, 219, 0.07);
+}
+
+.learning-feature-copy {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.learning-feature-copy strong {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.learning-feature-copy small {
+    color: var(--text-secondary);
+    font-size: 0.76rem;
+    line-height: 1.4;
+}
+
+.setting-group input.learning-feature-checkbox {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.learning-feature-switch {
+    position: relative;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 24px;
+    border: 1px solid rgba(127, 127, 127, 0.34);
+    border-radius: 999px;
+    background: rgba(127, 127, 127, 0.16);
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.learning-feature-switch::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    transition: transform 0.2s, background 0.2s;
+}
+
+.learning-feature-checkbox:checked + .learning-feature-switch {
+    border-color: rgba(147, 112, 219, 0.8);
+    background: rgba(147, 112, 219, 0.55);
+}
+
+.learning-feature-checkbox:checked + .learning-feature-switch::after {
+    transform: translateX(18px);
+    background: #fff;
+}
+
+.learning-feature-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.danger-outline-btn {
+    border-color: rgba(220, 80, 80, 0.45) !important;
+    color: var(--error-color) !important;
+    background: rgba(220, 80, 80, 0.06) !important;
+}
+
+.danger-outline-btn:hover {
+    border-color: rgba(220, 80, 80, 0.8) !important;
+    background: rgba(220, 80, 80, 0.12) !important;
+}
+
+.learning-feature-status {
+    min-height: 1.2em;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
 }
 
 textarea {

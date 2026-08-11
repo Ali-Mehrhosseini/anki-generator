@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Italian Anki Generator</title>
-    <link rel="stylesheet" href="styles.css?v=14">
+    <link rel="stylesheet" href="styles.css?v=18">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="/favicon.png">
     <script>
@@ -108,6 +108,13 @@
                     <!-- Streamed status updates will go here -->
                 </div>
             </div>
+            <section id="meaningChoicePanel" class="meaning-choice-panel hidden" aria-live="polite">
+                <div class="meaning-choice-eyebrow">Choose a meaning</div>
+                <h2 id="meaningChoiceTitle">What did you mean?</h2>
+                <p class="meaning-choice-help">Select one option before the card and audio are created.</p>
+                <div id="meaningChoiceOptions" class="meaning-choice-options"></div>
+                <button type="button" id="meaningChoiceCancel" class="meaning-choice-cancel">Cancel</button>
+            </section>
             <div id="statusMessage" class="hidden"></div>
         </div>
 
@@ -125,11 +132,24 @@
                     <div class="audio-controls" id="backAudioControls"></div>
                 </div>
             </div>
+            <details class="production-preview-details hidden" id="productionPreview">
+                <summary>Production recall card — also added</summary>
+                <div class="card-container production-card-container">
+                    <div class="card-side minimal-panel">
+                        <div class="side-label">Production Front</div>
+                        <div class="html-content" id="productionFrontHtml"></div>
+                    </div>
+                    <div class="card-side minimal-panel">
+                        <div class="side-label">Production Back</div>
+                        <div class="html-content" id="productionBackHtml"></div>
+                    </div>
+                </div>
+            </details>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script src="app.js?v=3"></script>
+    <script src="app.js?v=11"></script>
     <script>
         const themeToggleBtn = document.getElementById('themeToggleBtn');
         if (themeToggleBtn) {
