@@ -3,10 +3,42 @@ const PRODUCTION_FRONT_FIELD = 'AG_ProductionFront_v1';
 const PRODUCTION_BACK_FIELD = 'AG_ProductionBack_v1';
 const PRODUCTION_TEMPLATE_NAME = 'AG Production Recall';
 const PRODUCTION_TEMPLATE_MARKER = 'anki-generator-production-v1';
+const PRODUCTION_WORD_AUDIO_TEMPLATE_MARKER =
+    'anki-generator-production-word-audio-template-v1';
 const PRODUCTION_TEMPLATE_FRONT =
     `{{#${PRODUCTION_FRONT_FIELD}}}<!-- ${PRODUCTION_TEMPLATE_MARKER} -->`
     + `{{${PRODUCTION_FRONT_FIELD}}}{{/${PRODUCTION_FRONT_FIELD}}}`;
+const PRODUCTION_WORD_AUDIO_TEMPLATE_FALLBACK =
+    `<!-- ${PRODUCTION_WORD_AUDIO_TEMPLATE_MARKER} -->`
+    + `<span id="anki-generator-production-word-audio-fallback" `
+    + `class="anki-generator-inline-audio" `
+    + `style="display:inline-flex;align-items:center;margin-left:6px;" `
+    + `title="Play word" aria-label="Play word">{{WordAudio}}</span>`
+    + `<script>(function(){`
+    + `var fallback=document.getElementById(`
+    + `"anki-generator-production-word-audio-fallback");`
+    + `if(!fallback){return;}`
+    + `if(document.querySelector(`
+    + `".anki-generator-production-word-audio"))`
+    + `{fallback.style.display="none";return;}`
+    + `var nodes=document.querySelectorAll("div");`
+    + `for(var i=0;i<nodes.length;i++)`
+    + `{if(nodes[i].textContent.trim()!=="Answer"){continue;}`
+    + `var answer=nodes[i].nextElementSibling;`
+    + `if(!answer){continue;}`
+    + `var row=document.createElement("div");`
+    + `row.style.display="flex";row.style.alignItems="center";`
+    + `row.style.gap="8px";row.style.flexWrap="wrap";`
+    + `row.style.marginBottom="14px";`
+    + `answer.parentNode.insertBefore(row,answer);`
+    + `row.appendChild(answer);row.appendChild(fallback);`
+    + `answer.style.marginBottom="0";break;}`
+    + `})();</script>`;
 const PRODUCTION_TEMPLATE_BACK =
+    `{{FrontSide}}<hr id="answer"><!-- ${PRODUCTION_TEMPLATE_MARKER} -->`
+    + `{{${PRODUCTION_BACK_FIELD}}}`
+    + PRODUCTION_WORD_AUDIO_TEMPLATE_FALLBACK;
+const PRODUCTION_TEMPLATE_BACK_LEGACY =
     `{{FrontSide}}<hr id="answer"><!-- ${PRODUCTION_TEMPLATE_MARKER} -->`
     + `{{${PRODUCTION_BACK_FIELD}}}`
     + '<span style="display:none">{{WordAudio}}</span>';
@@ -118,6 +150,14 @@ function isCanonicalProductionTemplate(template) {
     );
 }
 
+function isLegacyProductionTemplate(template) {
+    return Boolean(
+        template
+        && String(template.Front || '') === PRODUCTION_TEMPLATE_FRONT
+        && String(template.Back || '') === PRODUCTION_TEMPLATE_BACK_LEGACY
+    );
+}
+
 async function ensureProductionCardModel(modelName) {
     const initialFields = await invokeAnki('modelFieldNames', { modelName });
     const missingRequired = REQUIRED_ANKI_FIELDS.filter(
@@ -144,11 +184,30 @@ async function ensureProductionCardModel(modelName) {
     if (
         existingProductionTemplate
         && !isCanonicalProductionTemplate(existingProductionTemplate)
+        && !isLegacyProductionTemplate(existingProductionTemplate)
     ) {
         throw new Error(
             `The app-owned "${PRODUCTION_TEMPLATE_NAME}" card type was edited `
             + 'or is outdated. Remove it in Settings, then try again.'
         );
+    }
+
+    // Auto-upgrade legacy template to canonical (adds visible word-audio button)
+    if (
+        existingProductionTemplate
+        && isLegacyProductionTemplate(existingProductionTemplate)
+    ) {
+        await invokeAnki('updateModelTemplates', {
+            model: {
+                name: modelName,
+                templates: {
+                    [PRODUCTION_TEMPLATE_NAME]: {
+                        Front: PRODUCTION_TEMPLATE_FRONT,
+                        Back: PRODUCTION_TEMPLATE_BACK
+                    }
+                }
+            }
+        });
     }
 
     const hasProductionField = [PRODUCTION_FRONT_FIELD, PRODUCTION_BACK_FIELD]
