@@ -35,9 +35,9 @@ SYSTEM_INSTRUCTION_TEMPLATE = PROMPT_FILE.read_text(encoding="utf-8")
 
 AWS_REGION = "us-east-1"
 GEMINI_MODEL_CHAIN = (
-    "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
     "gemini-3.1-flash-lite",
+    "gemini-3.5-flash",
 )
 GEMINI_FALLBACK_CODES = {404, 429, 503, 504}
 GEMINI_FALLBACK_STATUSES = {

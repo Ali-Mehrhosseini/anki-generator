@@ -3,6 +3,7 @@ python-dotenv
 google-genai
 boto3
 requests
+httpx
 gunicorn==21.2.0
 Pillow
 arabic-reshaper
