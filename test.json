@@ -1,0 +1,10 @@
+{
+    "name" : "Anki",
+    "version" : "1.0",
+    "description" : "Anki flashcard generator using Gemini and AWS Polly",
+    "main" : "main.py"
+}
+
+
+
+

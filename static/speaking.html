@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speaking Lab</title>
+    <link rel="stylesheet" href="/styles.css?v=18">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <script>
+        if (localStorage.getItem('theme') === 'light') {
+            document.documentElement.classList.add('light-mode');
+        }
+    </script>
+    <style>
+        html, body {
+            background: var(--bg-color);
+            min-height: 100vh;
+        }
+        textarea {
+            width: 100%;
+            background: var(--input-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            resize: vertical;
+            transition: all 0.3s ease;
+            margin: 1rem 0;
+            display: block;
+        }
+        textarea:focus {
+            border-color: rgba(255,255,255,0.3);
+            box-shadow: 0 0 0 4px rgba(255,255,255,0.05);
+        }
+        :root.light-mode textarea:focus {
+            border-color: rgba(0,0,0,0.2);
+            box-shadow: 0 0 0 4px rgba(0,0,0,0.05);
+        }
+        textarea::placeholder {
+            color: var(--text-secondary);
+        }
+        #task h2, #feedback h2 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.75rem;
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+            color: var(--text-primary);
+        }
+        #task p, #feedback p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+        #targets {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        #task strong {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        #status {
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 2rem 0;
+            font-size: 1rem;
+        }
+        #feedbackText hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 1rem 0;
+        }
+        #feedbackText strong {
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+        #feedbackText p {
+            margin-top: 0.4rem;
+        }
+        .lab-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+        /* Aurora background */
+        .aurora-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: -1;
+            overflow: hidden;
+            background: var(--bg-color);
+            transition: background 0.5s ease;
+        }
+        .aurora-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.5;
+            animation: floatOrb 20s infinite ease-in-out alternate;
+        }
+        .orb-1 { width: 600px; height: 600px; background: rgba(99,102,241,0.15); top: -100px; left: -100px; }
+        .orb-2 { width: 500px; height: 500px; background: rgba(168,85,247,0.15); bottom: -100px; right: -100px; animation-delay: -5s; }
+        .orb-3 { width: 400px; height: 400px; background: rgba(14,165,233,0.15); top: 40%; left: 40%; animation-delay: -10s; }
+        :root.light-mode .orb-1 { background: rgba(99,102,241,0.3); }
+        :root.light-mode .orb-2 { background: rgba(168,85,247,0.3); }
+        :root.light-mode .orb-3 { background: rgba(14,165,233,0.3); }
+        @keyframes floatOrb {
+            0%   { transform: translate(0,0) scale(1); }
+            100% { transform: translate(100px,50px) scale(1.2); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Aurora background -->
+    <div class="aurora-container">
+        <div class="aurora-orb orb-1"></div>
+        <div class="aurora-orb orb-2"></div>
+        <div class="aurora-orb orb-3"></div>
+    </div>
+
+    <!-- Back nav -->
+    <nav class="top-right-nav">
+        <a href="/" class="settings-corner-btn">← Back</a>
+    </nav>
+
+    <div class="container">
+        <header>
+            <h1>Speaking Lab</h1>
+            <p>Practice active recall with short, realistic Italian responses.</p>
+        </header>
+
+        <main class="minimal-panel" id="lab">
+            <p id="status">Loading a session…</p>
+
+            <section id="task" class="hidden">
+                <h2 id="title"></h2>
+                <p id="promptEn"></p>
+                <p id="promptFa" dir="rtl"></p>
+                <p><strong>Targets:</strong> <span id="targets"></span></p>
+                <textarea id="response" rows="7" placeholder="Write 2–4 sentences in Italian…"></textarea>
+                <div class="lab-actions">
+                    <button id="submit">Get feedback</button>
+                </div>
+            </section>
+
+            <section id="feedback" class="hidden">
+                <h2>Feedback</h2>
+                <div id="feedbackText"></div>
+                <div class="lab-actions" style="margin-top:1.5rem">
+                    <button id="again">New session</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/speaking.js?v=1"></script>
+</body>
+</html>

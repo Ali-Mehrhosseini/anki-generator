@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Italian Anki Generator</title>
+    <link rel="stylesheet" href="styles.css?v=18">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <script>
+        if (localStorage.getItem('theme') === 'light') {
+            document.documentElement.classList.add('light-mode');
+        }
+    </script>
+</head>
+<body>
+    <!-- Mobile Instructions Overlay -->
+    <div id="mobileOverlay" class="mobile-overlay hidden">
+        <div class="mobile-overlay-content">
+            <div class="mobile-overlay-icon">💻</div>
+            <h2>Desktop Required</h2>
+            <p class="mobile-overlay-subtitle">This app connects directly to Anki on your computer.</p>
+
+            <div class="mobile-instructions">
+                <div class="mobile-step">
+                    <span class="step-number">1</span>
+                    <span>Open this website on your <strong>computer</strong> (not your phone)</span>
+                </div>
+                <div class="mobile-step">
+                    <span class="step-number">2</span>
+                    <span>Install <strong>Anki Desktop</strong> and the <strong>AnkiConnect</strong> add-on</span>
+                </div>
+                <div class="mobile-step">
+                    <span class="step-number">3</span>
+                    <span>Keep Anki open, then use this website to generate flashcards</span>
+                </div>
+                <div class="mobile-step">
+                    <span class="step-number">4</span>
+                    <span>Your cards will sync to <strong>AnkiWeb</strong> and appear on your phone automatically</span>
+                </div>
+            </div>
+
+            <div class="mobile-overlay-url">
+                <span class="url-label">Open on your computer:</span>
+                <code id="siteUrl"></code>
+            </div>
+
+            <div class="mobile-overlay-url">
+                <span class="url-label">GitHub Repository:</span>
+                <a href="https://github.com/Ali-Mehrhosseini/anki-generator" target="_blank" style="color: var(--text-primary); font-size: 0.9rem; word-break: break-all; font-weight: 500; text-decoration: underline;">github.com/Ali-Mehrhosseini/anki-generator</a>
+            </div>
+
+            <button id="mobileOverlayDismiss" class="mobile-dismiss-btn">I understand, continue anyway →</button>
+        </div>
+    </div>
+
+    <div class="aurora-container">
+        <div class="aurora-orb orb-1"></div>
+        <div class="aurora-orb orb-2"></div>
+        <div class="aurora-orb orb-3"></div>
+    </div>
+    <div class="top-right-nav"><a href="/speaking" class="settings-corner-btn" style="text-decoration:none;">🗣️ Speaking Lab</a>
+        <button id="themeToggleBtn" class="settings-corner-btn" style="padding: 12px; min-width: auto;" title="Toggle Dark/Light Mode">🌓</button>
+        <a href="/settings" class="settings-corner-btn" style="text-decoration: none;" title="Anki Settings">⚙️ Settings</a>
+    </div>
+    <div class="container" style="position: relative;">
+        <header>
+            <div class="flag-wrapper" style="position: relative; display: inline-block;">
+                <div id="flagBanner" class="flag-banner bounce-anim" style="cursor: pointer; position: relative;">
+                    <img id="flagImage" src="https://flagcdn.com/w160/it.png" class="waving-flag" alt="Italian Flag">
+                    <span id="flagText">Italian</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                <div id="languageDropdown" class="custom-dropdown hidden">
+                    <div class="dropdown-item" data-lang="Italian">🇮🇹 Italian</div>
+                    <div class="dropdown-item" data-lang="Spanish">🇪🇸 Spanish</div>
+                    <div class="dropdown-item" data-lang="French">🇫🇷 French</div>
+                    <div class="dropdown-item" data-lang="German">🇩🇪 German</div>
+                    <div class="dropdown-item" data-lang="Japanese">🇯🇵 Japanese</div>
+                </div>
+            </div>
+
+            <div class="header-title-row">
+                <h1 id="mainTitle">Italian Anki Generator</h1>
+                <div class="status-indicator" id="ankiStatus" title="Checking Anki status..."></div>
+            </div>
+            <div id="ankiCloudNotice" class="cloud-badge cloud-error hidden" style="margin-top: 10px;">
+                <span class="cloud-icon">☁️</span> Please start Anki!
+            </div>
+            <p>Generate vocabulary and conjugations with audio</p>
+        </header>
+        
+
+
+        <div class="input-section minimal-panel">
+            <form id="wordForm">
+                <input type="text" id="wordInput" placeholder="Enter an Italian word or English phrase..." required autocomplete="off">
+                <button type="submit" id="generateBtn">
+                    <span class="btn-text">Generate Card</span>
+                </button>
+            </form>
+            <div id="progressContainer" class="progress-container hidden">
+                <div class="activity-header">
+                    <div class="pulse-dot"></div>
+                    <span>Live Generation Status</span>
+                </div>
+                <div id="activityLog" class="activity-log">
+                    <!-- Streamed status updates will go here -->
+                </div>
+            </div>
+            <section id="meaningChoicePanel" class="meaning-choice-panel hidden" aria-live="polite">
+                <div class="meaning-choice-eyebrow">Choose a meaning</div>
+                <h2 id="meaningChoiceTitle">What did you mean?</h2>
+                <p class="meaning-choice-help">Select one option before the card and audio are created.</p>
+                <div id="meaningChoiceOptions" class="meaning-choice-options"></div>
+                <button type="button" id="meaningChoiceCancel" class="meaning-choice-cancel">Cancel</button>
+            </section>
+            <div id="statusMessage" class="hidden"></div>
+        </div>
+
+        <div class="preview-section hidden" id="previewSection">
+            <h2>Card Preview</h2>
+            <div class="card-container">
+                <div class="card-side minimal-panel" id="frontPreview">
+                    <div class="side-label">Front</div>
+                    <div class="html-content" id="frontHtml"></div>
+                    <div class="audio-controls" id="frontAudioControls"></div>
+                </div>
+                <div class="card-side minimal-panel" id="backPreview">
+                    <div class="side-label">Back</div>
+                    <div class="html-content" id="backHtml"></div>
+                    <div class="audio-controls" id="backAudioControls"></div>
+                </div>
+            </div>
+            <details class="production-preview-details hidden" id="productionPreview">
+                <summary>Production recall card — also added</summary>
+                <div class="card-container production-card-container">
+                    <div class="card-side minimal-panel">
+                        <div class="side-label">Production Front</div>
+                        <div class="html-content" id="productionFrontHtml"></div>
+                    </div>
+                    <div class="card-side minimal-panel">
+                        <div class="side-label">Production Back</div>
+                        <div class="html-content" id="productionBackHtml"></div>
+                    </div>
+                </div>
+            </details>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="app.js?v=11"></script>
+    <script>
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                document.documentElement.classList.toggle('light-mode');
+                const isLight = document.documentElement.classList.contains('light-mode');
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            });
+        }
+
+        // Mobile detection & overlay
+        (function() {
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+                || (window.innerWidth <= 768 && 'ontouchstart' in window);
+            const dismissed = sessionStorage.getItem('mobileDismissed');
+            const overlay = document.getElementById('mobileOverlay');
+            const siteUrl = document.getElementById('siteUrl');
+
+            if (isMobile && !dismissed && overlay) {
+                overlay.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                if (siteUrl) siteUrl.textContent = window.location.origin;
+            }
+
+            const dismissBtn = document.getElementById('mobileOverlayDismiss');
+            if (dismissBtn) {
+                dismissBtn.addEventListener('click', () => {
+                    overlay.classList.add('hidden');
+                    document.body.style.overflow = '';
+                    sessionStorage.setItem('mobileDismissed', 'true');
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

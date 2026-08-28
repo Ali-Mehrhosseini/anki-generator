@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{title}</title>
+  <style>
+    body{font-family:-apple-system,Helvetica,Arial,sans-serif;margin:24px;background:transparent;color:inherit}
+    .card{max-width:900px;margin:0 auto;text-align:center}
+    .image-wrap{display:inline-block;background:#fff;border-radius:8px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,0.08)}
+    img{max-width:720px;height:auto;border-radius:8px;display:block}
+    .labels{margin-top:12px}
+    .italian{font-family:Georgia,'Times New Roman',serif;font-size:44px;font-weight:600;line-height:1.05;margin-bottom:6px}
+    .italian .stress{border-bottom:2px dotted currentColor;padding-bottom:2px}
+    .english{opacity:0.75;font-size:20px}
+    /* small responsive tweaks */
+    @media (max-width:520px){.italian{font-size:32px}.english{font-size:16px}}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="image-wrap">
+      <img src="{image_file}" alt="{title}">
+    </div>
+    <div class="labels">
+      <div class="italian">{italian}</div>
+      <div class="english">{english}</div>
+    </div>
+  </div>
+</body>
+</html>
