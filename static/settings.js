@@ -18,6 +18,46 @@ const LEARNING_FEATURE_KEYS = {
     cloze: 'featureSentenceCloze'
 };
 
+const REQUIRED_ANKI_FIELDS = [
+    'Word',
+    'Front',
+    'Back',
+    'WordAudio',
+    'Audio',
+    'Conjugation'
+];
+
+async function ensureNoteType(modelName) {
+    try {
+        const existingModels = await invokeAnki('modelNames');
+        if (existingModels && existingModels.includes(modelName)) return;
+
+        console.log(`Note type "${modelName}" not found — creating it now…`);
+        await invokeAnki('createModel', {
+            modelName,
+            inOrderFields: [...REQUIRED_ANKI_FIELDS],
+            css: `.card {
+    font-family: arial;
+    font-size: 20px;
+    line-height: 1.5;
+    text-align: center;
+    color: black;
+    background-color: white;
+}`,
+            cardTemplates: [
+                {
+                    Name: 'Card 1',
+                    Front: `<div style='font-family: "Arial"; font-size: 20px;'>{{Front}}</div>\n<div style='font-family: "Arial"; font-size: 20px;'>{{WordAudio}}</div>`,
+                    Back: `{{FrontSide}}\n\n<hr id=answer>\n\n<div style='font-family: "Arial"; font-size: 20px;'>{{Back}}</div>`
+                }
+            ]
+        });
+        console.log(`Note type "${modelName}" created.`);
+    } catch (e) {
+        console.warn('Could not auto-create note type:', e);
+    }
+}
+
 async function invokeAnki(action, params = {}) {
     const payload = { action, version: 6, params };
     const response = await fetch(ANKICONNECT_URL, {
@@ -635,16 +675,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
         
-        const models = await invokeAnki('modelNames');
+        const APP_DEFAULT_MODEL = 'Italian Vocab';
+        await ensureNoteType(APP_DEFAULT_MODEL);
+        const models = (await invokeAnki('modelNames')) || [];
         if (modelSelect) {
-            modelSelect.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
-            const preferredModel = localStorage.getItem('modelName') || 'Italian Vocab';
-            if (models.includes(preferredModel)) {
-                modelSelect.value = preferredModel;
-            }
-            if (modelSelect.value) {
-                localStorage.setItem('modelName', modelSelect.value);
-            }
+            const BUILTIN_MODELS = new Set([
+                'Basic', 'Basic (and reversed card)',
+                'Basic (optional reversed card)', 'Basic (type in the answer)',
+                'Cloze', 'Image Occlusion'
+            ]);
+
+            const modelList = models.includes(APP_DEFAULT_MODEL)
+                ? models
+                : [APP_DEFAULT_MODEL, ...models];
+
+            modelSelect.innerHTML = modelList.map(m => `<option value="${m}">${m}</option>`).join('');
+
+            const savedModel = localStorage.getItem('modelName');
+            const preferredModel = (savedModel && modelList.includes(savedModel) && !BUILTIN_MODELS.has(savedModel))
+                ? savedModel
+                : APP_DEFAULT_MODEL;
+
+            modelSelect.value = preferredModel;
+            localStorage.setItem('modelName', preferredModel);
         }
     } catch (e) {
         console.error("AnkiConnect not available yet.", e);

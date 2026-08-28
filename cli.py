@@ -967,6 +967,7 @@ def add_word_to_anki(
 
     if features.get("listening_card"):
         try:
+            ensure_note_type(NOTE_TYPE)
             initial_fields = invoke_anki(
                 "modelFieldNames",
                 {"modelName": NOTE_TYPE},
@@ -981,6 +982,7 @@ def add_word_to_anki(
 
     if features.get("sentence_cloze"):
         try:
+            ensure_note_type(NOTE_TYPE)
             initial_fields = invoke_anki(
                 "modelFieldNames",
                 {"modelName": NOTE_TYPE},

@@ -84,6 +84,14 @@ const REQUIRED_ANKI_FIELDS = [
     'Audio',
     'Conjugation'
 ];
+const BUILTIN_ANKI_MODELS = new Set([
+    'Basic',
+    'Basic (and reversed card)',
+    'Basic (optional reversed card)',
+    'Basic (type in the answer)',
+    'Cloze',
+    'Image Occlusion'
+]);
 const ANKI_FONT_ASSETS = [
     {
         filename: '_Vazirmatn-Regular.ttf',
@@ -373,6 +381,7 @@ function isOwnedListeningTemplate(template) {
 }
 
 async function ensureListeningCardModel(modelName) {
+    await ensureNoteType(modelName);
     const initialFields = await invokeAnki('modelFieldNames', { modelName });
     const initialTemplates = await invokeAnki('modelTemplates', { modelName });
     const existingTemplate = initialTemplates && initialTemplates[LISTENING_TEMPLATE_NAME];
@@ -467,6 +476,7 @@ function isOwnedClozeTemplate(template) {
 }
 
 async function ensureClozeCardModel(modelName) {
+    await ensureNoteType(modelName);
     const initialFields = await invokeAnki('modelFieldNames', { modelName });
     const initialTemplates = await invokeAnki('modelTemplates', { modelName });
     const existingTemplate = initialTemplates && initialTemplates[CLOZE_TEMPLATE_NAME];
@@ -847,7 +857,9 @@ document.addEventListener('DOMContentLoaded', () => {
         let deckName = localStorage.getItem('isCreatingNewDeck') === 'true' 
             ? (localStorage.getItem('newDeckName') || 'Default') 
             : (localStorage.getItem('deckName') || 'Italian');
-        let modelName = localStorage.getItem('modelName') || 'Italian Vocab';
+        let rawModel = localStorage.getItem('modelName');
+        let modelName = (rawModel && !BUILTIN_ANKI_MODELS.has(rawModel)) ? rawModel : 'Italian Vocab';
+        localStorage.setItem('modelName', modelName);
         let language = localStorage.getItem('language') || 'Italian';
         let translationLang = localStorage.getItem('translationLang') || 'Both (English + Persian)';
         const features = getLearningFeatures(language);
@@ -1359,6 +1371,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+
+    // Sanitize any legacy or incompatible saved note type
+    const currentSavedModel = localStorage.getItem('modelName');
+    if (!currentSavedModel || BUILTIN_ANKI_MODELS.has(currentSavedModel)) {
+        localStorage.setItem('modelName', 'Italian Vocab');
+    }
 
     // Check immediately on load, then every 5 seconds
     checkAnkiStatus();
