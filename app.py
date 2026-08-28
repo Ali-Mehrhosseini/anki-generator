@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify, send_from_directory, Response
-from main import process_word
+from main import process_word, generate_practice_feedback
+from learning_lab import build_session, load_state, record_session, save_state
 import hashlib
 import os
+from pathlib import Path
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 
@@ -12,6 +14,10 @@ def index():
 @app.route('/settings')
 def settings():
     return send_from_directory('static', 'settings.html')
+
+@app.route('/speaking')
+def speaking():
+    return send_from_directory('static', 'speaking.html')
 
 
 
@@ -66,5 +72,27 @@ def generate():
         }
     )
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True, port=5001)
+@app.route('/api/learning-lab/session', methods=['POST'])
+def learning_lab_session():
+    try:
+        data = request.json or {}
+        state = load_state(Path(__file__).resolve().parent)
+        session = build_session(invoke_anki, state, data.get('sourceModel', 'Italian Vocab'), data.get('recallModel', 'AG Production Recall v1'))
+        return jsonify(session), 200
+    except Exception as error:
+        return jsonify({"error": str(error)}), 400
+
+@app.route('/api/learning-lab/feedback', methods=['POST'])
+def learning_lab_feedback():
+    try:
+        data = request.json or {}
+        workspace = Path(__file__).resolve().parent
+        state = load_state(workspace)
+        feedback = generate_practice_feedback(data.get('targets') or [], data.get('task') or {}, data.get('response', ''), data.get('geminiKey', ''))
+        if feedback.get('error'):
+            return jsonify(feedback), 400
+        record_session(state, data.get('targets') or [], response=data.get('response', ''), feedback=feedback)
+        save_state(workspace, state)
+        return jsonify(feedback), 200
+    except Exception as error:
+        return jsonify({"error": str(error)}), 400

@@ -116,6 +116,8 @@ DEFAULT_LEARNING_FEATURES = {
     "production_card": True,
     "common_phrases": True,
     "smart_grammar": True,
+    "listening_card": False,
+    "sentence_cloze": False,
 }
 
 
@@ -201,6 +203,52 @@ PRODUCTION_TEMPLATE_BACK = (
     f"<!-- {PRODUCTION_TEMPLATE_MARKER} -->"
     f"{{{{{PRODUCTION_BACK_FIELD}}}}}"
     f"{PRODUCTION_WORD_AUDIO_TEMPLATE_FALLBACK}"
+)
+
+# --- Listening Comprehension Card (audio-only → text recall) ---
+LISTENING_FIELD = "AG_ListeningEnabled_v1"
+LISTENING_TEMPLATE_NAME = "AG Listening Comprehension"
+LISTENING_TEMPLATE_MARKER = "anki-generator-listening-v1"
+LISTENING_TEMPLATE_FRONT = (
+    f"{{{{#{LISTENING_FIELD}}}}}"
+    f"<!-- {LISTENING_TEMPLATE_MARKER} -->"
+    '<div style="font-family:-apple-system,Helvetica,Arial,sans-serif;'
+    'text-align:center;padding:56px 20px 48px;">'
+    '<div style="opacity:0.5;font-size:12px;font-weight:600;'
+    'text-transform:uppercase;letter-spacing:0.09em;margin-bottom:24px;">'
+    'Listening Comprehension</div>'
+    '<div style="font-size:64px;margin-bottom:20px;">🎧</div>'
+    '<div style="font-size:20px;opacity:0.7;font-style:italic;'
+    'margin-bottom:24px;">What word is this?</div>'
+    '<div class="anki-generator-inline-audio" '
+    'style="display:inline-flex;align-items:center;">'
+    '{{WordAudio}}</div></div>'
+    f"{{{{/{LISTENING_FIELD}}}}}"
+)
+LISTENING_TEMPLATE_BACK = (
+    "{{FrontSide}}<hr id=\"answer\">"
+    f"<!-- {LISTENING_TEMPLATE_MARKER} -->"
+    "{{Back}}"
+)
+
+# --- Sentence Cloze Card (contextual gap-fill) ---
+CLOZE_FRONT_FIELD = "AG_ClozeFront_v1"
+CLOZE_BACK_FIELD = "AG_ClozeBack_v1"
+CLOZE_TEMPLATE_NAME = "AG Sentence Cloze"
+CLOZE_TEMPLATE_MARKER = "anki-generator-cloze-v1"
+CLOZE_TEMPLATE_FRONT = (
+    f"{{{{#{CLOZE_FRONT_FIELD}}}}}"
+    f"<!-- {CLOZE_TEMPLATE_MARKER} -->"
+    f"{{{{{CLOZE_FRONT_FIELD}}}}}"
+    f"{{{{/{CLOZE_FRONT_FIELD}}}}}"
+)
+CLOZE_TEMPLATE_BACK = (
+    "{{FrontSide}}<hr id=\"answer\">"
+    f"<!-- {CLOZE_TEMPLATE_MARKER} -->"
+    f"{{{{{CLOZE_BACK_FIELD}}}}}"
+    '<div class="anki-generator-inline-audio" '
+    'style="display:inline-flex;align-items:center;margin-top:12px;">'
+    '{{WordAudio}}</div>'
 )
 
 ANKI_CARD_STYLE_MARKER = "anki-generator-card-style-v3"
@@ -2347,6 +2395,138 @@ def build_production_card_html(
     }
 
 
+def build_cloze_card_html(
+    data: dict,
+    translation_lang: str,
+    language: str,
+) -> dict:
+    """Build a sentence-cloze card from the main example sentence.
+
+    The front shows the example with the target word blanked out and
+    a translation hint. The back reveals the completed sentence with
+    the word highlighted.
+    """
+    tts_example = str(data.get("tts_example") or "").strip()
+    word = str(data.get("word") or "").strip()
+    tts_word = str(data.get("tts_word") or word).strip()
+    meaning_en = str(data.get("meaning_en") or "").strip()
+    meaning_fa = str(data.get("meaning_fa") or "").strip()
+
+    if not tts_example or not word:
+        return {}
+
+    # Find the word (or its tts form without article) in the example
+    # Try the exact word first, then case-insensitive match
+    gap_form = None
+    example_lower = tts_example.lower()
+    for candidate in (word, tts_word):
+        idx = example_lower.find(candidate.lower())
+        if idx >= 0:
+            gap_form = tts_example[idx:idx + len(candidate)]
+            break
+
+    if not gap_form:
+        # Try matching any conjugated form (for verbs: tts_verb_1..6)
+        for i in range(1, 7):
+            verb_form = str(data.get(f"tts_verb_{i}") or "").strip()
+            if verb_form:
+                idx = example_lower.find(verb_form.lower())
+                if idx >= 0:
+                    gap_form = tts_example[idx:idx + len(verb_form)]
+                    break
+
+    if not gap_form:
+        return {}
+
+    # Split the example around the matched form
+    idx = tts_example.lower().find(gap_form.lower())
+    before = tts_example[:idx]
+    after = tts_example[idx + len(gap_form):]
+
+    # Build meaning hint
+    if translation_lang == "English":
+        hint = html.escape(meaning_en) if meaning_en else ""
+    elif translation_lang == "Persian":
+        hint = (
+            f'<span class="anki-fa" lang="fa" dir="rtl">'
+            f'{html.escape(meaning_fa)}</span>'
+        ) if meaning_fa else ""
+    else:
+        parts = []
+        if meaning_en:
+            parts.append(html.escape(meaning_en))
+        if meaning_fa:
+            parts.append(
+                f'<span class="anki-fa" lang="fa" dir="rtl">'
+                f'{html.escape(meaning_fa)}</span>'
+            )
+        hint = " · ".join(parts)
+
+    gap_html = (
+        f'{html.escape(before)}'
+        '<span style="display:inline-block;min-width:72px;'
+        'border-bottom:2px solid rgba(147,112,219,0.75);'
+        'color:transparent;line-height:0.9;">_____</span>'
+        f'{html.escape(after)}'
+    )
+    completed_html = (
+        f'{html.escape(before)}'
+        '<span style="font-weight:700;color:rgb(147,112,219);">'
+        f'{html.escape(gap_form)}</span>'
+        f'{html.escape(after)}'
+    )
+
+    example_audio = build_manual_audio_html(
+        word,
+        "_example",
+        f"Play {language} example",
+        "anki-generator-cloze-example-audio",
+    )
+
+    front_html = (
+        f'{ANKI_CARD_STYLE}'
+        '<div style="font-family:-apple-system,Helvetica,Arial,sans-serif;'
+        'max-width:560px;margin:0 auto;text-align:center;padding:38px 20px 32px;">'
+        '<div style="opacity:0.5;font-size:12px;font-weight:600;'
+        'text-transform:uppercase;letter-spacing:0.09em;margin-bottom:12px;">'
+        f'Fill the gap in {html.escape(language)}</div>'
+        '<div style="margin-top:16px;padding:14px 16px;'
+        'background:rgba(127,127,127,0.09);border-radius:8px;'
+        'font-size:21px;font-style:italic;line-height:1.55;">'
+        f'{gap_html}</div>'
+    )
+    if hint:
+        front_html += (
+            '<div style="margin-top:14px;opacity:0.65;font-size:17px;">'
+            f'Hint: {hint}</div>'
+        )
+    front_html += '</div>'
+
+    back_html = (
+        f'{ANKI_CARD_STYLE}'
+        '<div style="font-family:-apple-system,Helvetica,Arial,sans-serif;'
+        'max-width:560px;margin:0 auto;text-align:left;padding:12px 8px 22px;">'
+        '<div style="opacity:0.5;font-size:12px;font-weight:600;'
+        'text-transform:uppercase;letter-spacing:0.09em;margin-bottom:6px;">'
+        'Answer</div>'
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;'
+        'margin-bottom:14px;">'
+        '<div style="font-family:Georgia,\'Times New Roman\',serif;'
+        'font-size:38px;font-weight:600;line-height:1.25;">'
+        f'{html.escape(tts_word)}</div></div>'
+        '<div style="display:flex;align-items:flex-start;gap:6px;'
+        'padding:11px 13px;background:rgba(127,127,127,0.09);'
+        'border-left:3px solid rgba(147,112,219,0.7);border-radius:6px;'
+        'font-size:19px;font-style:italic;line-height:1.5;">'
+        f'<div style="flex:1 1 auto;min-width:0;">{completed_html}</div>'
+        f'{example_audio}</div></div>'
+    )
+
+    return {
+        "front_html": front_html,
+        "back_html": back_html,
+    }
+
 def _word_family_meaning_html(entry: dict, translation_lang: str) -> str:
     meaning_en = entry["meaning_en"]
     meaning_fa = entry["meaning_fa"]
@@ -2859,6 +3039,27 @@ def apply_card_presentation(
     else:
         data.pop("production_card", None)
         data.pop("production_card_html", None)
+
+    # Listening comprehension: the field is just a marker ("1") to activate
+    # the conditional template; the template itself uses {{WordAudio}} and {{Back}}.
+    if features.get("listening_card"):
+        data["listening_enabled"] = True
+    else:
+        data.pop("listening_enabled", None)
+
+    # Sentence cloze: builds a gap-fill card from the main example sentence.
+    if features.get("sentence_cloze"):
+        cloze_card_html = build_cloze_card_html(
+            data,
+            translation_lang,
+            language,
+        )
+        if cloze_card_html:
+            data["cloze_card_html"] = cloze_card_html
+        else:
+            data.pop("cloze_card_html", None)
+    else:
+        data.pop("cloze_card_html", None)
 
     if not features["common_phrases"]:
         data.pop("common_phrases", None)

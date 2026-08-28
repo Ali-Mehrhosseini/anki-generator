@@ -13,7 +13,9 @@ const REVERT_PROGRESS_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const LEARNING_FEATURE_KEYS = {
     production: 'featureProductionCard',
     phrases: 'featureCommonPhrases',
-    grammar: 'featureSmartGrammar'
+    grammar: 'featureSmartGrammar',
+    listening: 'featureListeningCard',
+    cloze: 'featureSentenceCloze'
 };
 
 async function invokeAnki(action, params = {}) {
@@ -353,6 +355,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const productionCardToggle = document.getElementById('productionCardToggle');
     const commonPhrasesToggle = document.getElementById('commonPhrasesToggle');
     const smartGrammarToggle = document.getElementById('smartGrammarToggle');
+    const listeningCardToggle = document.getElementById('listeningCardToggle');
+    const sentenceClozeToggle = document.getElementById('sentenceClozeToggle');
     const useOriginalCardBtn = document.getElementById('useOriginalCardBtn');
     const revertLearningFeaturesBtn = document.getElementById('revertLearningFeaturesBtn');
     const learningFeatureStatus = document.getElementById('learningFeatureStatus');
@@ -375,6 +379,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (smartGrammarToggle) {
         smartGrammarToggle.checked = localStorage.getItem(LEARNING_FEATURE_KEYS.grammar) !== 'false';
+    }
+    if (listeningCardToggle) {
+        listeningCardToggle.checked = localStorage.getItem(LEARNING_FEATURE_KEYS.listening) === 'true';
+    }
+    if (sentenceClozeToggle) {
+        sentenceClozeToggle.checked = localStorage.getItem(LEARNING_FEATURE_KEYS.cloze) === 'true';
     }
 
     const saveKeys = () => {
@@ -419,13 +429,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             localStorage.setItem(LEARNING_FEATURE_KEYS.grammar, String(smartGrammarToggle.checked));
         });
     }
+    if (listeningCardToggle) {
+        listeningCardToggle.addEventListener('change', () => {
+            localStorage.setItem(LEARNING_FEATURE_KEYS.listening, String(listeningCardToggle.checked));
+        });
+    }
+    if (sentenceClozeToggle) {
+        sentenceClozeToggle.addEventListener('change', () => {
+            localStorage.setItem(LEARNING_FEATURE_KEYS.cloze, String(sentenceClozeToggle.checked));
+        });
+    }
 
     if (useOriginalCardBtn) {
         useOriginalCardBtn.addEventListener('click', () => {
             for (const [toggle, key] of [
                 [productionCardToggle, LEARNING_FEATURE_KEYS.production],
                 [commonPhrasesToggle, LEARNING_FEATURE_KEYS.phrases],
-                [smartGrammarToggle, LEARNING_FEATURE_KEYS.grammar]
+                [smartGrammarToggle, LEARNING_FEATURE_KEYS.grammar],
+                [listeningCardToggle, LEARNING_FEATURE_KEYS.listening],
+                [sentenceClozeToggle, LEARNING_FEATURE_KEYS.cloze]
             ]) {
                 if (toggle) toggle.checked = false;
                 localStorage.setItem(key, 'false');

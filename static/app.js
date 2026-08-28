@@ -42,6 +42,39 @@ const PRODUCTION_TEMPLATE_BACK_LEGACY =
     `{{FrontSide}}<hr id="answer"><!-- ${PRODUCTION_TEMPLATE_MARKER} -->`
     + `{{${PRODUCTION_BACK_FIELD}}}`
     + '<span style="display:none">{{WordAudio}}</span>';
+
+const LISTENING_FIELD = 'AG_ListeningEnabled_v1';
+const LISTENING_TEMPLATE_NAME = 'AG Listening Comprehension';
+const LISTENING_TEMPLATE_MARKER = 'anki-generator-listening-v1';
+const LISTENING_TEMPLATE_FRONT =
+    `{{#${LISTENING_FIELD}}}<!-- ${LISTENING_TEMPLATE_MARKER} -->`
+    + '<div style="font-family:-apple-system,Helvetica,Arial,sans-serif;'
+    + 'text-align:center;padding:56px 20px 48px;">'
+    + '<div style="opacity:0.5;font-size:12px;font-weight:600;'
+    + 'text-transform:uppercase;letter-spacing:0.09em;margin-bottom:24px;">'
+    + 'Listening Comprehension</div>'
+    + '<div style="font-size:64px;margin-bottom:20px;">🎧</div>'
+    + '<div style="font-size:20px;opacity:0.7;font-style:italic;'
+    + 'margin-bottom:24px;">What word is this?</div>'
+    + '<div class="anki-generator-inline-audio" '
+    + 'style="display:inline-flex;align-items:center;">'
+    + `{{WordAudio}}</div></div>{{/${LISTENING_FIELD}}}`;
+const LISTENING_TEMPLATE_BACK =
+    `{{FrontSide}}<hr id="answer"><!-- ${LISTENING_TEMPLATE_MARKER} -->{{Back}}`;
+
+const CLOZE_FRONT_FIELD = 'AG_ClozeFront_v1';
+const CLOZE_BACK_FIELD = 'AG_ClozeBack_v1';
+const CLOZE_TEMPLATE_NAME = 'AG Sentence Cloze';
+const CLOZE_TEMPLATE_MARKER = 'anki-generator-cloze-v1';
+const CLOZE_TEMPLATE_FRONT =
+    `{{#${CLOZE_FRONT_FIELD}}}<!-- ${CLOZE_TEMPLATE_MARKER} -->`
+    + `{{${CLOZE_FRONT_FIELD}}}{{/${CLOZE_FRONT_FIELD}}}`;
+const CLOZE_TEMPLATE_BACK =
+    `{{FrontSide}}<hr id="answer"><!-- ${CLOZE_TEMPLATE_MARKER} -->`
+    + `{{${CLOZE_BACK_FIELD}}}`
+    + '<div class="anki-generator-inline-audio" '
+    + 'style="display:inline-flex;align-items:center;margin-top:12px;">'
+    + '{{WordAudio}}</div>';
 const LEGACY_DEFAULT_PROMPT_FINGERPRINTS = new Set(['b8580232']);
 const REQUIRED_ANKI_FIELDS = [
     'Word',
@@ -122,7 +155,9 @@ function getLearningFeatures(language = 'Italian') {
         common_phrases: localStorage.getItem('featureCommonPhrases') !== 'false',
         smart_grammar:
             String(language).trim().toLowerCase() === 'italian'
-            && localStorage.getItem('featureSmartGrammar') !== 'false'
+            && localStorage.getItem('featureSmartGrammar') !== 'false',
+        listening_card: localStorage.getItem('featureListeningCard') === 'true',
+        sentence_cloze: localStorage.getItem('featureSentenceCloze') === 'true'
     };
 }
 
@@ -295,6 +330,201 @@ async function ensureProductionCardModel(modelName) {
     }
 }
 
+function isOwnedListeningTemplate(template) {
+    if (!template) return false;
+    const front = String(template.Front || '');
+    const back = String(template.Back || '');
+    return (
+        front.includes(LISTENING_TEMPLATE_MARKER)
+        && back.includes(LISTENING_TEMPLATE_MARKER)
+    );
+}
+
+async function ensureListeningCardModel(modelName) {
+    const initialFields = await invokeAnki('modelFieldNames', { modelName });
+    const initialTemplates = await invokeAnki('modelTemplates', { modelName });
+    const existingTemplate = initialTemplates && initialTemplates[LISTENING_TEMPLATE_NAME];
+    
+    if (existingTemplate && !isOwnedListeningTemplate(existingTemplate)) {
+        throw new Error(
+            `The "${modelName}" note type already has a card type named `
+            + `"${LISTENING_TEMPLATE_NAME}" that was not created by this app.`
+        );
+    }
+
+    if (!existingTemplate && initialFields.includes(LISTENING_FIELD)) {
+        throw new Error(
+            `The "${modelName}" note type already contains a listening field `
+            + 'with the same name. Nothing was changed.'
+        );
+    }
+
+    const addedFields = [];
+    let templateAdded = false;
+    const rollbackNewModelParts = async () => {
+        if (templateAdded) {
+            try {
+                await invokeAnki('modelTemplateRemove', {
+                    modelName,
+                    templateName: LISTENING_TEMPLATE_NAME
+                });
+            } catch (error) {
+                console.warn('Could not roll back the new listening template:', error);
+            }
+        }
+        for (const fieldName of [...addedFields].reverse()) {
+            try {
+                await invokeAnki('modelFieldRemove', { modelName, fieldName });
+            } catch (error) {
+                console.warn(`Could not roll back ${fieldName}:`, error);
+            }
+        }
+    };
+
+    try {
+        if (!initialFields.includes(LISTENING_FIELD)) {
+            await invokeAnki('modelFieldAdd', { modelName, fieldName: LISTENING_FIELD });
+            addedFields.push(LISTENING_FIELD);
+        }
+
+        if (!existingTemplate) {
+            await invokeAnki('modelTemplateAdd', {
+                modelName,
+                template: {
+                    Name: LISTENING_TEMPLATE_NAME,
+                    Front: LISTENING_TEMPLATE_FRONT,
+                    Back: LISTENING_TEMPLATE_BACK
+                }
+            });
+            templateAdded = true;
+        }
+    } catch (error) {
+        await rollbackNewModelParts();
+        throw error;
+    }
+
+    let verifiedFields;
+    let verifiedTemplates;
+    try {
+        [verifiedFields, verifiedTemplates] = await Promise.all([
+            invokeAnki('modelFieldNames', { modelName }),
+            invokeAnki('modelTemplates', { modelName })
+        ]);
+    } catch (error) {
+        await rollbackNewModelParts();
+        throw error;
+    }
+
+    if (!verifiedFields.includes(LISTENING_FIELD) || !isOwnedListeningTemplate(verifiedTemplates && verifiedTemplates[LISTENING_TEMPLATE_NAME])) {
+        await rollbackNewModelParts();
+        throw new Error(
+            'Anki did not finish creating the listening card type. '
+            + 'Update AnkiConnect or turn off Listening comprehension in Settings.'
+        );
+    }
+}
+
+function isOwnedClozeTemplate(template) {
+    if (!template) return false;
+    const front = String(template.Front || '');
+    const back = String(template.Back || '');
+    return (
+        front.includes(CLOZE_TEMPLATE_MARKER)
+        && back.includes(CLOZE_TEMPLATE_MARKER)
+    );
+}
+
+async function ensureClozeCardModel(modelName) {
+    const initialFields = await invokeAnki('modelFieldNames', { modelName });
+    const initialTemplates = await invokeAnki('modelTemplates', { modelName });
+    const existingTemplate = initialTemplates && initialTemplates[CLOZE_TEMPLATE_NAME];
+    
+    if (existingTemplate && !isOwnedClozeTemplate(existingTemplate)) {
+        throw new Error(
+            `The "${modelName}" note type already has a card type named `
+            + `"${CLOZE_TEMPLATE_NAME}" that was not created by this app.`
+        );
+    }
+
+    const hasClozeField = [CLOZE_FRONT_FIELD, CLOZE_BACK_FIELD]
+        .some(field => initialFields.includes(field));
+    if (!existingTemplate && hasClozeField) {
+        throw new Error(
+            `The "${modelName}" note type already contains a cloze field `
+            + 'with the same name. Nothing was changed.'
+        );
+    }
+
+    const addedFields = [];
+    let templateAdded = false;
+    const rollbackNewModelParts = async () => {
+        if (templateAdded) {
+            try {
+                await invokeAnki('modelTemplateRemove', {
+                    modelName,
+                    templateName: CLOZE_TEMPLATE_NAME
+                });
+            } catch (error) {
+                console.warn('Could not roll back the new cloze template:', error);
+            }
+        }
+        for (const fieldName of [...addedFields].reverse()) {
+            try {
+                await invokeAnki('modelFieldRemove', { modelName, fieldName });
+            } catch (error) {
+                console.warn(`Could not roll back ${fieldName}:`, error);
+            }
+        }
+    };
+
+    try {
+        for (const fieldName of [CLOZE_FRONT_FIELD, CLOZE_BACK_FIELD]) {
+            if (!initialFields.includes(fieldName)) {
+                await invokeAnki('modelFieldAdd', { modelName, fieldName });
+                addedFields.push(fieldName);
+            }
+        }
+
+        if (!existingTemplate) {
+            await invokeAnki('modelTemplateAdd', {
+                modelName,
+                template: {
+                    Name: CLOZE_TEMPLATE_NAME,
+                    Front: CLOZE_TEMPLATE_FRONT,
+                    Back: CLOZE_TEMPLATE_BACK
+                }
+            });
+            templateAdded = true;
+        }
+    } catch (error) {
+        await rollbackNewModelParts();
+        throw error;
+    }
+
+    let verifiedFields;
+    let verifiedTemplates;
+    try {
+        [verifiedFields, verifiedTemplates] = await Promise.all([
+            invokeAnki('modelFieldNames', { modelName }),
+            invokeAnki('modelTemplates', { modelName })
+        ]);
+    } catch (error) {
+        await rollbackNewModelParts();
+        throw error;
+    }
+
+    const fieldsReady = [CLOZE_FRONT_FIELD, CLOZE_BACK_FIELD].every(
+        field => verifiedFields.includes(field)
+    );
+    if (!fieldsReady || !isOwnedClozeTemplate(verifiedTemplates && verifiedTemplates[CLOZE_TEMPLATE_NAME])) {
+        await rollbackNewModelParts();
+        throw new Error(
+            'Anki did not finish creating the sentence cloze card type. '
+            + 'Update AnkiConnect or turn off Sentence cloze in Settings.'
+        );
+    }
+}
+
 function ankiSearchLiteral(value) {
     return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
@@ -424,8 +654,18 @@ async function createAnkiNote(data, audios, deckName, modelName, language) {
         fields[PRODUCTION_BACK_FIELD] = productionCard.back_html;
     }
 
+    if (data.data.listening_enabled) {
+        fields[LISTENING_FIELD] = '1';
+    }
+
+    const clozeCard = data.data.cloze_card_html;
+    if (clozeCard && clozeCard.front_html && clozeCard.back_html) {
+        fields[CLOZE_FRONT_FIELD] = clozeCard.front_html;
+        fields[CLOZE_BACK_FIELD] = clozeCard.back_html;
+    }
+
     // One note creates the original recognition card and, when populated,
-    // the optional production-recall sibling card.
+    // the optional sibling cards.
     const noteId = await invokeAnki('addNote', {
         note: {
             deckName: deckName,
@@ -436,12 +676,14 @@ async function createAnkiNote(data, audios, deckName, modelName, language) {
         }
     });
 
+    const cardTypes = ['recognition'];
+    if (fields[PRODUCTION_FRONT_FIELD]) cardTypes.push('production');
+    if (fields[LISTENING_FIELD]) cardTypes.push('listening');
+    if (fields[CLOZE_FRONT_FIELD]) cardTypes.push('cloze');
+
     return {
         noteId,
-        productionIncluded: Boolean(
-            fields[PRODUCTION_FRONT_FIELD]
-            && fields[PRODUCTION_BACK_FIELD]
-        )
+        cardSummary: cardTypes.join(' + ') + (cardTypes.length > 1 ? ' cards' : ' card')
     };
 }
 
@@ -700,6 +942,32 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                 }
+                
+                if (features.listening_card) {
+                    try {
+                        await ensureListeningCardModel(modelName);
+                    } catch (error) {
+                        setLoading(false, false);
+                        showError(
+                            `Listening card setup failed: ${error.message} `
+                            + 'You can turn off Listening comprehension in Settings and continue with the original card.'
+                        );
+                        return;
+                    }
+                }
+
+                if (features.sentence_cloze) {
+                    try {
+                        await ensureClozeCardModel(modelName);
+                    } catch (error) {
+                        setLoading(false, false);
+                        showError(
+                            `Sentence cloze card setup failed: ${error.message} `
+                            + 'You can turn off Sentence cloze in Settings and continue with the original card.'
+                        );
+                        return;
+                    }
+                }
 
                 const generatedProductionCard =
                     data.data && data.data.production_card_html;
@@ -727,11 +995,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     );
 
                     setLoading(false, true);
-                    const cardSummary = noteResult.productionIncluded
-                        ? 'Recognition and production cards added'
-                        : 'Recognition card added';
                     showSuccess(
-                        `${cardSummary}. Note ID: ${noteResult.noteId}`
+                        `${noteResult.cardSummary} added. Note ID: ${noteResult.noteId}`
                     );
 
                     // Strip [sound:...] tags from the front entirely

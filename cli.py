@@ -36,6 +36,17 @@ from main import (
     PRODUCTION_TEMPLATE_FRONT,
     PRODUCTION_TEMPLATE_MARKER,
     PRODUCTION_TEMPLATE_NAME,
+    LISTENING_FIELD,
+    LISTENING_TEMPLATE_NAME,
+    LISTENING_TEMPLATE_MARKER,
+    LISTENING_TEMPLATE_FRONT,
+    LISTENING_TEMPLATE_BACK,
+    CLOZE_FRONT_FIELD,
+    CLOZE_BACK_FIELD,
+    CLOZE_TEMPLATE_NAME,
+    CLOZE_TEMPLATE_MARKER,
+    CLOZE_TEMPLATE_FRONT,
+    CLOZE_TEMPLATE_BACK,
     VAZIRMATN_FONT_FILES,
     create_polly_client,
     format_polly_error,
@@ -404,6 +415,220 @@ def ensure_production_card_model(model_name):
         )
 
 
+def _is_owned_listening_template(template):
+    if not template:
+        return False
+    front = str(template.get("Front") or "")
+    back = str(template.get("Back") or "")
+    return (
+        LISTENING_TEMPLATE_MARKER in front
+        and LISTENING_TEMPLATE_MARKER in back
+    )
+
+
+def _ensure_listening_card_model(model_name, initial_fields):
+    """Add the Listening Comprehension template and field to the note type."""
+    initial_templates = invoke_anki(
+        "modelTemplates",
+        {"modelName": model_name},
+    )
+    existing = (initial_templates or {}).get(LISTENING_TEMPLATE_NAME)
+    if existing and not _is_owned_listening_template(existing):
+        raise ValueError(
+            f"Note type '{model_name}' already has a card type named "
+            f"'{LISTENING_TEMPLATE_NAME}' that is not owned by this app."
+        )
+
+    has_field = LISTENING_FIELD in initial_fields
+    if not existing and has_field:
+        raise ValueError(
+            f"Note type '{model_name}' already contains a listening field "
+            "with the same name. Nothing was changed."
+        )
+
+    added_fields = []
+    template_added = False
+
+    def rollback():
+        if template_added:
+            try:
+                invoke_anki(
+                    "modelTemplateRemove",
+                    {
+                        "modelName": model_name,
+                        "templateName": LISTENING_TEMPLATE_NAME,
+                    },
+                )
+            except Exception:
+                pass
+        for field_name in reversed(added_fields):
+            try:
+                invoke_anki(
+                    "modelFieldRemove",
+                    {"modelName": model_name, "fieldName": field_name},
+                )
+            except Exception:
+                pass
+
+    try:
+        if LISTENING_FIELD not in initial_fields:
+            invoke_anki(
+                "modelFieldAdd",
+                {"modelName": model_name, "fieldName": LISTENING_FIELD},
+            )
+            added_fields.append(LISTENING_FIELD)
+
+        if not existing:
+            invoke_anki(
+                "modelTemplateAdd",
+                {
+                    "modelName": model_name,
+                    "template": {
+                        "Name": LISTENING_TEMPLATE_NAME,
+                        "Front": LISTENING_TEMPLATE_FRONT,
+                        "Back": LISTENING_TEMPLATE_BACK,
+                    },
+                },
+            )
+            template_added = True
+    except Exception:
+        rollback()
+        raise
+
+    try:
+        verified_fields = invoke_anki(
+            "modelFieldNames",
+            {"modelName": model_name},
+        )
+        verified_templates = invoke_anki(
+            "modelTemplates",
+            {"modelName": model_name},
+        )
+    except Exception:
+        rollback()
+        raise
+    if LISTENING_FIELD not in verified_fields:
+        rollback()
+        raise RuntimeError(
+            "Anki did not finish creating the listening card type."
+        )
+    if not _is_owned_listening_template(
+        (verified_templates or {}).get(LISTENING_TEMPLATE_NAME)
+    ):
+        rollback()
+        raise RuntimeError(
+            "Anki did not finish creating the listening card type."
+        )
+
+
+def _is_owned_cloze_template(template):
+    if not template:
+        return False
+    front = str(template.get("Front") or "")
+    back = str(template.get("Back") or "")
+    return (
+        CLOZE_TEMPLATE_MARKER in front
+        and CLOZE_TEMPLATE_MARKER in back
+    )
+
+
+def _ensure_cloze_card_model(model_name, initial_fields):
+    """Add the Sentence Cloze template and fields to the note type."""
+    initial_templates = invoke_anki(
+        "modelTemplates",
+        {"modelName": model_name},
+    )
+    existing = (initial_templates or {}).get(CLOZE_TEMPLATE_NAME)
+    if existing and not _is_owned_cloze_template(existing):
+        raise ValueError(
+            f"Note type '{model_name}' already has a card type named "
+            f"'{CLOZE_TEMPLATE_NAME}' that is not owned by this app."
+        )
+
+    has_field = any(
+        field in initial_fields
+        for field in (CLOZE_FRONT_FIELD, CLOZE_BACK_FIELD)
+    )
+    if not existing and has_field:
+        raise ValueError(
+            f"Note type '{model_name}' already contains a cloze field "
+            "with the same name. Nothing was changed."
+        )
+
+    added_fields = []
+    template_added = False
+
+    def rollback():
+        if template_added:
+            try:
+                invoke_anki(
+                    "modelTemplateRemove",
+                    {
+                        "modelName": model_name,
+                        "templateName": CLOZE_TEMPLATE_NAME,
+                    },
+                )
+            except Exception:
+                pass
+        for field_name in reversed(added_fields):
+            try:
+                invoke_anki(
+                    "modelFieldRemove",
+                    {"modelName": model_name, "fieldName": field_name},
+                )
+            except Exception:
+                pass
+
+    try:
+        for field_name in (CLOZE_FRONT_FIELD, CLOZE_BACK_FIELD):
+            if field_name not in initial_fields:
+                invoke_anki(
+                    "modelFieldAdd",
+                    {"modelName": model_name, "fieldName": field_name},
+                )
+                added_fields.append(field_name)
+
+        if not existing:
+            invoke_anki(
+                "modelTemplateAdd",
+                {
+                    "modelName": model_name,
+                    "template": {
+                        "Name": CLOZE_TEMPLATE_NAME,
+                        "Front": CLOZE_TEMPLATE_FRONT,
+                        "Back": CLOZE_TEMPLATE_BACK,
+                    },
+                },
+            )
+            template_added = True
+    except Exception:
+        rollback()
+        raise
+
+    try:
+        verified_fields = invoke_anki(
+            "modelFieldNames",
+            {"modelName": model_name},
+        )
+        verified_templates = invoke_anki(
+            "modelTemplates",
+            {"modelName": model_name},
+        )
+    except Exception:
+        rollback()
+        raise
+    fields_ready = all(
+        field in verified_fields
+        for field in (CLOZE_FRONT_FIELD, CLOZE_BACK_FIELD)
+    )
+    if not fields_ready or not _is_owned_cloze_template(
+        (verified_templates or {}).get(CLOZE_TEMPLATE_NAME)
+    ):
+        rollback()
+        raise RuntimeError(
+            "Anki did not finish creating the sentence cloze card type."
+        )
+
 def _anki_search_literal(value):
     """Quote a value for Anki's search syntax."""
     return str(value).replace('\\', '\\\\').replace('"', '\\"')
@@ -692,6 +917,34 @@ def add_word_to_anki(
             )
             return False
 
+    if features.get("listening_card"):
+        try:
+            initial_fields = invoke_anki(
+                "modelFieldNames",
+                {"modelName": NOTE_TYPE},
+            )
+            _ensure_listening_card_model(NOTE_TYPE, initial_fields)
+        except Exception as error:
+            print(
+                "❌ Listening card setup failed: "
+                f"{error} Turn it off with --no-listening-card."
+            )
+            return False
+
+    if features.get("sentence_cloze"):
+        try:
+            initial_fields = invoke_anki(
+                "modelFieldNames",
+                {"modelName": NOTE_TYPE},
+            )
+            _ensure_cloze_card_model(NOTE_TYPE, initial_fields)
+        except Exception as error:
+            print(
+                "❌ Cloze card setup failed: "
+                f"{error} Turn it off with --no-sentence-cloze."
+            )
+            return False
+
     config = LANGUAGE_CONFIGS.get(language, LANGUAGE_CONFIGS["Italian"])
     voice = config["voice"]
     lang_code = config["code"]
@@ -759,6 +1012,20 @@ def add_word_to_anki(
             fields[PRODUCTION_FRONT_FIELD] = production_card["front_html"]
             fields[PRODUCTION_BACK_FIELD] = production_card["back_html"]
 
+        # Listening: a non-empty marker activates the conditional template.
+        if features.get("listening_card") and data.get("listening_enabled"):
+            fields[LISTENING_FIELD] = "1"
+
+        # Cloze: populate with the generated cloze HTML.
+        cloze_card = data.get("cloze_card_html") or {}
+        if (
+            features.get("sentence_cloze")
+            and cloze_card.get("front_html")
+            and cloze_card.get("back_html")
+        ):
+            fields[CLOZE_FRONT_FIELD] = cloze_card["front_html"]
+            fields[CLOZE_BACK_FIELD] = cloze_card["back_html"]
+
         # Add one note; the conditional template creates the optional sibling card.
         note_params = {
             "note": {
@@ -771,10 +1038,15 @@ def add_word_to_anki(
         }
     
         note_id = invoke_anki('addNote', note_params)
-        card_summary = (
-            "recognition + production cards"
-            if PRODUCTION_FRONT_FIELD in fields
-            else "recognition card"
+        card_types = ["recognition"]
+        if PRODUCTION_FRONT_FIELD in fields:
+            card_types.append("production")
+        if LISTENING_FIELD in fields:
+            card_types.append("listening")
+        if CLOZE_FRONT_FIELD in fields:
+            card_types.append("cloze")
+        card_summary = " + ".join(card_types) + (
+            " cards" if len(card_types) > 1 else " card"
         )
         print(
             f"✅ Successfully added '{generated_word}' ({card_summary})! "
@@ -1327,6 +1599,16 @@ def _run_teacher_cli(args):
         "smart_grammar": not (
             args.original_card or args.no_smart_grammar
         ),
+        "listening_card": (
+            args.listening_card
+            and not args.original_card
+            and not args.no_listening_card
+        ),
+        "sentence_cloze": (
+            args.sentence_cloze
+            and not args.original_card
+            and not args.no_sentence_cloze
+        ),
     }
     _print_lesson_heading("Creating selected cards")
     print(f"Adding {len(selected)} item(s) to Anki…\n")
@@ -1575,7 +1857,11 @@ def build_parser():
     parser.add_argument("--no-production-card", action="store_true", help="Keep only the original recognition card")
     parser.add_argument("--no-common-phrases", action="store_true", help="Do not add common phrases")
     parser.add_argument("--no-smart-grammar", action="store_true", help="Do not add smart Italian grammar")
-    parser.add_argument("--original-card", action="store_true", help="Disable all three optional learning features")
+    parser.add_argument("--listening-card", action="store_true", help="Enable listening comprehension card (audio-only front)")
+    parser.add_argument("--no-listening-card", action="store_true", help="Do not create a listening comprehension card")
+    parser.add_argument("--sentence-cloze", action="store_true", help="Enable sentence cloze card (contextual gap-fill)")
+    parser.add_argument("--no-sentence-cloze", action="store_true", help="Do not create a sentence cloze card")
+    parser.add_argument("--original-card", action="store_true", help="Disable all optional learning features")
 
     migration = parser.add_mutually_exclusive_group()
     migration.add_argument(
@@ -2549,6 +2835,16 @@ def main():
         ),
         "smart_grammar": not (
             args.original_card or args.no_smart_grammar
+        ),
+        "listening_card": (
+            args.listening_card
+            and not args.original_card
+            and not args.no_listening_card
+        ),
+        "sentence_cloze": (
+            args.sentence_cloze
+            and not args.original_card
+            and not args.no_sentence_cloze
         ),
     }
     for word in words_to_add:
