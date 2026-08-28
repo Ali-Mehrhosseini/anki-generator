@@ -193,7 +193,39 @@ function isLegacyProductionTemplate(template) {
     );
 }
 
+async function ensureNoteType(modelName) {
+    /** Create the note type from scratch if it doesn't exist yet.
+     *  Lets the app work on a fresh Anki install — no manual setup needed. */
+    const existingModels = await invokeAnki('modelNames');
+    if (existingModels && existingModels.includes(modelName)) return;
+
+    console.log(`Note type "${modelName}" not found — creating it now…`);
+    await invokeAnki('createModel', {
+        modelName,
+        inOrderFields: [...REQUIRED_ANKI_FIELDS],
+        css: `.card {
+    font-family: arial;
+    font-size: 20px;
+    line-height: 1.5;
+    text-align: center;
+    color: black;
+    background-color: white;
+}`,
+        cardTemplates: [
+            {
+                Name: 'Card 1',
+                Front: `<div style='font-family: "Arial"; font-size: 20px;'>{{Front}}</div>\n<div style='font-family: "Arial"; font-size: 20px;'>{{WordAudio}}</div>`,
+                Back: `{{FrontSide}}\n\n<hr id=answer>\n\n<div style='font-family: "Arial"; font-size: 20px;'>{{Back}}</div>`
+            }
+        ]
+    });
+    console.log(`Note type "${modelName}" created.`);
+}
+
 async function ensureProductionCardModel(modelName) {
+    // Auto-create the note type on a fresh Anki install.
+    await ensureNoteType(modelName);
+
     const initialFields = await invokeAnki('modelFieldNames', { modelName });
     const missingRequired = REQUIRED_ANKI_FIELDS.filter(
         field => !initialFields.includes(field)

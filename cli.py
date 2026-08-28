@@ -271,8 +271,56 @@ def _is_legacy_production_template(template):
     )
 
 
+def ensure_note_type(model_name):
+    """Create the note type from scratch if it doesn't exist yet.
+
+    This lets the app work on a fresh Anki install without requiring the
+    user to manually create the 'Italian Vocab' note type.
+    """
+    existing_models = invoke_anki("modelNames") or []
+    if model_name in existing_models:
+        return  # Nothing to do
+
+    print(f"📋 Note type '{model_name}' not found — creating it now…")
+    invoke_anki("createModel", {
+        "modelName": model_name,
+        "inOrderFields": list(REQUIRED_ANKI_FIELDS),
+        "css": (
+            ".card {\n"
+            "    font-family: arial;\n"
+            "    font-size: 20px;\n"
+            "    line-height: 1.5;\n"
+            "    text-align: center;\n"
+            "    color: black;\n"
+            "    background-color: white;\n"
+            "}\n"
+        ),
+        "cardTemplates": [
+            {
+                "Name": "Card 1",
+                "Front": (
+                    "<div style='font-family: \"Arial\"; font-size: 20px;'>"
+                    "{{Front}}</div>\n"
+                    "<div style='font-family: \"Arial\"; font-size: 20px;'>"
+                    "{{WordAudio}}</div>"
+                ),
+                "Back": (
+                    "{{FrontSide}}\n\n"
+                    "<hr id=answer>\n\n"
+                    "<div style='font-family: \"Arial\"; font-size: 20px;'>"
+                    "{{Back}}</div>"
+                ),
+            }
+        ],
+    })
+    print(f"✅ Note type '{model_name}' created.")
+
+
 def ensure_production_card_model(model_name):
     """Safely add the app-owned conditional production card type."""
+    # Auto-create the note type if this is a fresh Anki install.
+    ensure_note_type(model_name)
+
     initial_fields = invoke_anki(
         "modelFieldNames",
         {"modelName": model_name},
