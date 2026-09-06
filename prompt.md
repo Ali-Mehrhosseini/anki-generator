@@ -13,7 +13,7 @@ The user will send one of:
 - An **English word or phrase**: translate to the most common {LANGUAGE} equivalent.
 - A **short {LANGUAGE} phrase**. Treat as one card.
 
-**STRICT LANGUAGE CHECK**: If the input word is CLEARLY in a different language (e.g., German when the target is Italian) and is NOT English, you MUST reject it! Set the `error` field in the JSON to a polite message (e.g., "It looks like 'schlafen' is a German word, but you have Italian selected!"). For valid inputs, leave `error` as an empty string `""`.
+**STRICT LANGUAGE CHECK**: NEVER REJECT THE INPUT WORD. You must assume the user input is valid and proceed with translation and card generation. ALWAYS leave `error` as an empty string `""`.
 
 If the input is ambiguous within the same grammatical role, do not silently hide a common meaning. Include the top 1–2 common beginner-useful senses in the first meaning line, ordered by likely usefulness. If the same spelling has a separate grammatical identity, follow the morphological-homograph rule below instead of mixing incompatible grammar on one card.
 
@@ -69,6 +69,8 @@ Return ONLY a JSON object with these keys. No prose, no markdown fences, no comm
 | `word_family` | array | always | Zero to four related forms. Each item has its form, meanings, one example with translations, and pronunciation text. Use `[]` when no useful family form exists. |
 | `word_family_unavailable` | array | always | Related categories that were checked but have no suitable common form. Never include the main lemma's own category. |
 | `word_origin` | object | always | Reliable word construction and origin details. Use empty strings for anything uncertain or unhelpful. |
+| `emoji` | string | always | ONE emoji pictograming the core sense, or empty string when nothing concrete fits. |
+| `frequency_band` | string | always | The word's spoken-frequency band: `top500`, `top1000`, `top3000`, or `beyond3000`. Use the lemma's band for inflected forms. |
 | `production_card` | object | when requested | Structured meaning cue and one sentence gap for active Italian recall. |
 | `common_phrases` | array | when requested | One or two common chunks containing the selected word. |
 | `smart_grammar` | object | when requested | Structured part-of-speech-specific Italian grammar values. |
@@ -81,22 +83,25 @@ Return ONLY a JSON object with these keys. No prose, no markdown fences, no comm
 </div>
 ```
 
-- **[FRONT_WORD]**: For verbs/adjectives this is the bare lemma. For nouns, this MUST include the definite article!
+- **[FRONT_WORD]**: For verbs/adjectives this is the bare lemma. For nouns, this MUST include the definite article! NEVER use phonetic symbols, combining diacritics, or foreign characters (like Hebrew) in this field.
+- The visible Front must contain the exact canonical `word` value as one uninterrupted spelling. Never copy the hyphenated syllable breakdown from `STRESS_HINT` into the Front, and never display an inflected input form in place of the lemma.
 - **Stress dot (mandatory):** wrap the single **stressed vowel** of the main word in `<span style="border-bottom:2px dotted currentColor;padding-bottom:2px;">VOWEL</span>`. (Do not stress the article).
+- The stress span must contain exactly one vowel—never a consonant, syllable, hyphen, or multiple characters.
 
 ## 🔤 `back_html` template
 
     <div style="font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:20px;line-height:1.5;text-align:left;max-width:560px;margin:0 auto;">
       {MEANING_HTML}
-      <div style="opacity:0.65;font-size:15px;margin-bottom:14px;">[POS] · [GENDER_OR_GRAMMAR] · [PLURAL_OR_FORM_NOTE]</div>
+      <div style="opacity:0.65;font-size:15px;margin-bottom:14px;">[EMOJI] [POS] · [GENDER_OR_GRAMMAR] · [PLURAL_OR_FORM_NOTE] [FREQ_CHIP]</div>
       <div style="opacity:0.7;font-size:15px;font-style:italic;margin-bottom:[16px or 4px if Past line follows];">Stress: [STRESS_HINT]</div>
 
       <!-- Verbs only: Past/Perfect line directly under Stress -->
       <div style="opacity:0.7;font-size:15px;font-style:italic;margin-bottom:16px;">Past: [PAST_FORM]</div>
 
+- **[STRESS_HINT]**: A simple syllable breakdown using uppercase to show stress (e.g., `go-DI-ti`). Use ONLY standard Latin letters. Do NOT use phonetic symbols, underdots, or Hebrew/foreign characters.
+
       <!-- Forms table OR verb conjugation table — never both -->
       [TABLE_HERE]
-
       <div style="background:rgba(127,127,127,0.12);border-left:3px solid rgba(147,112,219,0.7);border-radius:6px;padding:10px 14px;margin-bottom:10px;">
         <div style="font-style:italic;">[{LANGUAGE}_EXAMPLE_1] [MAIN_EXAMPLE_AUDIO_HTML]</div>
         {EXAMPLE_HTML}
@@ -110,11 +115,16 @@ Return ONLY a JSON object with these keys. No prose, no markdown fences, no comm
 
       <!-- Keep this literal marker exactly here; the application replaces it -->
       [WORD_ORIGIN_HTML]
-      
+
       <div style="opacity:0.55;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:6px;">Notes</div>
       <ul style="margin:0;padding-left:20px;font-size:17px;">
         <li style="margin-bottom:4px;">[NOTE_1]</li>
       </ul>
+
+      <div style="margin-top:14px;padding:10px 14px;border:1px dashed rgba(127,127,127,0.5);border-radius:6px;opacity:0.8;">
+        <div style="font-size:13px;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">✏️ My sentence</div>
+        <div style="font-size:16px;font-style:italic;">Edit this note in Anki and replace this line with one sentence from your own life using this word.</div>
+      </div>
     </div>
 
 {TRANSLATION_INSTRUCTION}
@@ -126,6 +136,27 @@ Return ONLY a JSON object with these keys. No prose, no markdown fences, no comm
 - Keep `[WORD_ORIGIN_HTML]` literal and unchanged. The application safely replaces or removes it.
 
 {LEARNING_FEATURES_INSTRUCTION}
+
+## 📋 Forms table (adjectives & nouns) — exact template
+
+For **adjectives** use EXACTLY this 4-row table, filled with the real declined forms (the base form must match the headword):
+
+    <table style="border-collapse:collapse;width:100%;font-size:17px;margin-bottom:16px;">
+      <thead>
+        <tr><th colspan="2" style="text-align:left;padding:6px 10px;border-bottom:1px solid rgba(127,127,127,0.3);opacity:0.55;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;">Forms</th></tr>
+      </thead>
+      <tbody>
+        <tr><td style="padding:6px 10px;opacity:0.6;font-size:14px;width:38%;">Masculine Singular</td><td style="padding:6px 10px;font-weight:600;">[FORM_MS]</td></tr>
+        <tr><td style="padding:6px 10px;opacity:0.6;font-size:14px;">Feminine Singular</td><td style="padding:6px 10px;font-weight:600;">[FORM_FS]</td></tr>
+        <tr><td style="padding:6px 10px;opacity:0.6;font-size:14px;">Masculine Plural</td><td style="padding:6px 10px;font-weight:600;">[FORM_MP]</td></tr>
+        <tr><td style="padding:6px 10px;opacity:0.6;font-size:14px;">Feminine Plural</td><td style="padding:6px 10px;font-weight:600;">[FORM_FP]</td></tr>
+      </tbody>
+    </table>
+
+- Never invent other row labels, extra columns, widths, or different paddings — the alignment depends on this markup being verbatim.
+- For **nouns** use the same table skeleton with only TWO rows, labelled `Singular` and `Plural`, and each form cell containing the noun WITH its article (e.g. `il numero` / `i numeri`).
+- For adverbs, prepositions, and invariable words, return an empty string for `back_html`'s table position (no table at all).
+- Do not bold, color, or audio-link the forms in this table (audio exists on the headword); plain text only.
 
 ## 🔁 Verb conjugation table (verbs only) — with per-form audio
 
@@ -213,6 +244,23 @@ The application renders this data in a small bilingual section near the bottom o
 - Never invent an origin, ancient root, or literal meaning. Use empty strings for uncertain details.
 - For ordinary inflected input, explain the origin of the dictionary lemma, not the typed inflection.
 - Do not write Word Origin HTML in `back_html`; keep the literal `[WORD_ORIGIN_HTML]` marker for the application.
+
+## 🎒 Card learning boosters — memory hook, pictogram, frequency
+
+Three small additions make each card easier to retain. Fill them in `back_html` inside the supplied template placeholders, and return the matching JSON fields.
+
+### `emoji` — one-picture dual coding
+- Return exactly ONE emoji that a beginner would recognize as the core sense ( nouns, concrete verbs, foods, animals, objects, actions).
+- Prefer the most literal, unambiguous emoji. Use an empty string `""` when the sense is abstract and no emoji would genuinely help (e.g. `benché`, "however").
+- Place it in `[EMOJI]` at the start of the meta line, followed by a space. When empty, the meta line simply starts with the part of speech.
+
+### `frequency_band` — spoken-frequency chip
+- Return the band for the word's SPOKEN frequency, judged by the lemma: `top500`, `top1000`, `top3000`, or `beyond3000`.
+- Render `[FREQ_CHIP]` as a small chip at the end of the meta line, e.g. `<span style="opacity:0.7;">📊 top 1000</span>`, with a single space before it. When the band is `beyond3000`, render an empty string instead (no chip).
+- This is an estimate for prioritization, not a claim of exact rank — never add precision you do not have.
+
+### ✏️ My sentence — keep the template block
+- The final dashed block of the Back template ("My sentence") is STATIC: copy it unchanged with its italic placeholder line. Never fill it in, never remove it — the learner replaces that line with their own sentence when editing the note in Anki.
 
 ## 🔊 Conjugation field (verbs only — plaintext)
 The `conjugation_field` JSON key holds a plaintext version of the six forms, one per line.

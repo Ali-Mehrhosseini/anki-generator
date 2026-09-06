@@ -18,7 +18,32 @@ from practice_mode import (
     save_practice_state,
     select_practice_targets,
     update_practice_state,
+    _translation_example,
 )
+
+
+class TranslationExampleTests(unittest.TestCase):
+    def test_extracts_adjacent_english_example_from_existing_card(self):
+        italian, english = _translation_example(
+            "intanto",
+            "<div>Answer</div><div>intanto</div>"
+            "<div>Io intanto pulisco la cucina.</div>",
+            "<div>Io intanto pulisco la cucina.</div>"
+            "<div>I clean the kitchen in the meantime.</div>"
+            "<div>Learning Essentials</div>",
+        )
+
+        self.assertEqual(italian, "Io intanto pulisco la cucina.")
+        self.assertEqual(english, "I clean the kitchen in the meantime.")
+
+    def test_rejects_non_english_adjacent_translation(self):
+        italian, english = _translation_example(
+            "intanto",
+            "Answer intanto Io intanto pulisco.",
+            "Io intanto pulisco. من در این حین تمیز می‌کنم.",
+        )
+
+        self.assertEqual((italian, english), ("", ""))
 
 
 class CandidateAnki:
@@ -286,6 +311,88 @@ class CorrectionCardTests(unittest.TestCase):
 
 
 class PracticeFeedbackTests(unittest.TestCase):
+    def test_first_exposure_grammar_does_not_penalize_correct_target_use(self):
+        feedback = {
+            "retry_needed": True,
+            "retry_instruction_en": "Use sia.",
+            "retry_instruction_fa": "از sia استفاده کنید.",
+            "new_pattern": {"detected": True, "first_exposure": True},
+            "target_results": [{
+                "word": "ritenere", "used": True, "correct": False,
+                "error_type": "grammar", "feedback_en": "Use sia.",
+                "feedback_fa": "از sia استفاده کنید.",
+                "correction_prompt_en": "Fix it.",
+                "correction_prompt_fa": "اصلاح کنید.",
+                "correction_answer_it": "Ritengo che sia utile.",
+            }],
+        }
+
+        result = main._defer_first_exposure_grammar(feedback)
+
+        self.assertFalse(result["retry_needed"])
+        self.assertTrue(result["target_results"][0]["correct"])
+        self.assertEqual(result["target_results"][0]["error_type"], "none")
+        self.assertEqual(result["retry_instruction_en"], "")
+
+    def test_audio_feedback_transcribes_and_evaluates_in_one_call(self):
+        payload = {
+            "transcript_it": "Io intanto pulisco.",
+            "transcription_uncertain": False,
+            "overall_en": "Good.", "overall_fa": "خوب.", "strengths": [],
+            "corrected_response_it": "Io intanto pulisco.",
+            "retry_needed": False, "retry_instruction_en": "", "retry_instruction_fa": "",
+            "target_results": [{
+                "word": "intanto", "used": True, "correct": True,
+                "error_type": "none", "feedback_en": "Correct.",
+                "feedback_fa": "درست.", "correction_prompt_en": "",
+                "correction_prompt_fa": "", "correction_answer_it": "",
+            }],
+        }
+        response = type("Response", (), {"text": json.dumps(payload)})()
+        with patch.object(main.genai, "Client", return_value=object()), patch.object(
+            main, "generate_with_gemini_fallback",
+            return_value=(response, "gemini-test"),
+        ) as generate:
+            result = main.generate_practice_audio_feedback(
+                b"audio", "audio/webm", [{"word": "intanto"}],
+                {"source_en": "Meanwhile, I clean."}, "key",
+            )
+
+        self.assertEqual(result["transcript_it"], "Io intanto pulisco.")
+        self.assertEqual(result["_gemini_model"], "gemini-test")
+        self.assertEqual(len(generate.call_args.kwargs["contents"]), 2)
+
+    def test_audio_fallback_returns_plain_italian_transcript(self):
+        response = type("Response", (), {"text": "Parlo in italiano."})()
+        with patch.object(main.genai, "Client", return_value=object()), patch.object(
+            main,
+            "generate_with_gemini_fallback",
+            return_value=(response, "gemini-test"),
+        ) as generate:
+            transcript = main.transcribe_practice_audio(
+                b"audio-bytes",
+                "audio/webm;codecs=opus",
+                "key",
+            )
+
+        self.assertEqual(transcript, "Parlo in italiano.")
+        audio_part = generate.call_args.kwargs["contents"][0]
+        self.assertEqual(audio_part.inline_data.mime_type, "audio/webm")
+        self.assertEqual(audio_part.inline_data.data, b"audio-bytes")
+
+    def test_audio_fallback_treats_no_speech_as_empty(self):
+        response = type("Response", (), {"text": "NO_SPEECH"})()
+        with patch.object(main.genai, "Client", return_value=object()), patch.object(
+            main,
+            "generate_with_gemini_fallback",
+            return_value=(response, "gemini-test"),
+        ):
+            transcript = main.transcribe_practice_audio(
+                b"audio-bytes", "audio/webm", "key"
+            )
+
+        self.assertEqual(transcript, "")
+
     def test_feedback_uses_one_structured_gemini_call_and_preserves_targets(self):
         payload = {
             "overall_en": "Good attempt.",
@@ -320,9 +427,12 @@ class PracticeFeedbackTests(unittest.TestCase):
                     "title": "Ask",
                     "prompt_en": "Ask for information.",
                     "prompt_fa": "اطلاعات بخواه.",
+                    "task_type": "translation",
+                    "source_en": "It must arrive by Friday.",
                 },
                 "Deve arrivare entro venerdì.",
                 "key",
+                response_mode="voice",
             )
 
         self.assertEqual(result["_gemini_model"], "gemini-test")
@@ -331,4 +441,13 @@ class PracticeFeedbackTests(unittest.TestCase):
         generate.assert_called_once()
         config = generate.call_args.kwargs["config"]
         self.assertEqual(config.response_mime_type, "application/json")
-
+        self.assertIn(
+            "automatic speech transcript",
+            generate.call_args.kwargs["contents"],
+        )
+        self.assertIn(
+            "English-to-Italian spoken translation",
+            config.system_instruction,
+        )
+        self.assertIn("new_pattern", config.response_schema["properties"])
+        self.assertIn("KNOWN_GRAMMAR_TOPICS", generate.call_args.kwargs["contents"])

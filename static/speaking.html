@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Voice-Only Speaking Sprint</title>
+    <link rel="stylesheet" href="/styles.css?v=24">
+</head>
+<body class="speaking-page">
+    <div class="aurora-container" aria-hidden="true">
+        <div class="aurora-orb orb-1"></div>
+        <div class="aurora-orb orb-2"></div>
+        <div class="aurora-orb orb-3"></div>
+    </div>
+    <div class="container speaking-container">
+        <header class="speaking-header">
+            <a href="/" class="small-btn speaking-back">← Back</a>
+            <div class="speaking-eyebrow">Active Italian</div>
+            <h1>Speaking Sprint</h1>
+            <p>Three short rounds. Voice only—typing is intentionally unavailable.</p>
+        </header>
+
+        <main class="minimal-panel speaking-shell" id="lab">
+            <section id="intro" class="speaking-intro">
+                <div class="speaking-intro-icon" aria-hidden="true">🎙</div>
+                <h2>Translate one sentence aloud</h2>
+                <p>Retrieve an everyday Italian sentence, repair one important point, then use it in a new situation. Weak language returns later through spoken spaced review.</p>
+                <ul class="speaking-rules">
+                    <li>Live captions show your words on screen as you speak.</li>
+                    <li>Tap any English word for a hint, the meaning, or a new Anki card.</li>
+                    <li>Only one short sentence and one target word per round.</li>
+                    <li>If a target is missed, you must say the answer again.</li>
+                    <li>Uncertain audio is never graded.</li>
+                </ul>
+                <button id="startSprint" class="speaking-primary">Start voice-only sprint</button>
+                <p class="speaking-privacy">Gemini evaluates the temporary recording directly. The app stores only the transcript and feedback, never the raw audio.</p>
+            </section>
+
+            <p id="status" class="speaking-status hidden" role="status" aria-live="polite"></p>
+
+            <section id="sprint" class="hidden" aria-labelledby="roundTitle">
+                <div class="speaking-progress-row">
+                    <span id="roundLabel">Round 1 of 3</span>
+                    <span id="attemptLabel">Attempt 1</span>
+                    <span class="speaking-daily"><span id="dailyRing" aria-hidden="true"></span><span id="dailyProgress">Today 0/5</span></span>
+                </div>
+                <div class="speaking-progress" aria-hidden="true"><span id="progressFill"></span></div>
+
+                <aside id="coachStrip" class="speaking-coach hidden" aria-live="polite"></aside>
+
+                <article class="speaking-prompt-card" id="promptCard">
+                    <div id="phaseLabel" class="speaking-eyebrow">Translate into Italian</div>
+                    <h2 id="roundTitle"></h2>
+                    <p id="promptEn"></p>
+                    <p id="promptFa" class="speaking-persian" lang="fa" dir="rtl"></p>
+                    <button id="changeSentence" class="speaking-link-button">↻ Change sentence</button>
+                    <div class="speaking-target-label">Required Italian word</div>
+                    <div id="targets" class="speaking-targets"></div>
+                    <div id="hintPanel" class="speaking-hint hidden">
+                        <div class="speaking-target-label">Italian starting point</div>
+                        <p id="hintText" lang="it"></p>
+                    </div>
+                    <button id="hintButton" class="speaking-link-button hidden">Give me one Italian hint</button>
+
+                    <div id="wordHelpPanel" class="speaking-word-help hidden">
+                        <div class="speaking-word-help-head">
+                            <div class="speaking-word-help-title">
+                                <strong id="wordHelpWord" lang="en"></strong>
+                                <span class="speaking-word-help-sub">Remember the Italian word?</span>
+                            </div>
+                            <button id="wordHelpClose" class="speaking-word-close" type="button" aria-label="Close word help">✕</button>
+                        </div>
+                        <p id="wordHelpShape" class="speaking-word-shape"></p>
+                        <div class="speaking-word-guess-row">
+                            <input id="wordHelpGuess" placeholder="Type your Italian guess…" autocomplete="off" spellcheck="false" lang="it">
+                            <button id="wordHelpGuessBtn" class="speaking-secondary speaking-word-check" type="button">Check</button>
+                        </div>
+                        <p id="wordHelpGuessFeedback" class="speaking-word-guess-feedback hidden"></p>
+                        <div id="wordHelpHintBlock" class="speaking-word-hint hidden">
+                            <small>Hint</small>
+                            <p id="wordHelpHint"></p>
+                            <p id="wordHelpHintFa" lang="fa" dir="rtl"></p>
+                        </div>
+                        <div id="wordHelpMeaning" class="speaking-word-meaning hidden">
+                            <p class="speaking-word-lemma-row"><strong id="wordHelpLemma" lang="it"></strong> <span id="wordHelpPos"></span></p>
+                            <p id="wordHelpMeaningEn" class="speaking-word-meaning-en"></p>
+                            <p id="wordHelpMeaningFa" lang="fa" dir="rtl"></p>
+                            <div class="speaking-word-example-box">
+                                <p id="wordHelpExample" class="speaking-word-example" lang="it"></p>
+                                <p id="wordHelpExampleEn"></p>
+                            </div>
+                        </div>
+                        <div class="speaking-word-actions">
+                            <button id="wordHelpShow" class="speaking-secondary hidden" type="button">Show the meaning</button>
+                            <button id="wordHelpPlay" class="speaking-secondary hidden" type="button">🔊 Play it</button>
+                            <button id="wordHelpMnemonic" class="speaking-secondary hidden" type="button">🧠 Memory trick</button>
+                            <a id="wordHelpAdd" class="speaking-secondary speaking-add-link hidden" href="/" target="_blank" rel="opener">➕ Add to Anki</a>
+                        </div>
+                        <div id="wordHelpMnemonicBlock" class="speaking-word-mnemonic hidden">
+                            <div class="speaking-word-deep-title">Memory trick · keyword method</div>
+                            <p id="wordHelpKeyword" lang="fa" dir="rtl"></p>
+                            <p id="wordHelpImage"></p>
+                            <p id="wordHelpImageFa" lang="fa" dir="rtl"></p>
+                        </div>
+                        <p id="wordHelpStatus" class="speaking-audio-status" role="status"></p>
+                        <div id="wordHelpDeep" class="speaking-word-deep hidden">
+                            <div class="speaking-word-deep-title">Why this word here</div>
+                            <p id="wordHelpUsage"></p>
+                            <p id="wordHelpUsageFa" lang="fa" dir="rtl"></p>
+                            <div class="speaking-word-deep-title">The form you need</div>
+                            <p id="wordHelpFormIt" class="speaking-word-form" lang="it"></p>
+                            <p id="wordHelpFormEn"></p>
+                            <p id="wordHelpFormFa" lang="fa" dir="rtl"></p>
+                            <div class="speaking-word-deep-title">Good to know</div>
+                            <p id="wordHelpNote"></p>
+                            <p id="wordHelpNoteFa" lang="fa" dir="rtl"></p>
+                        </div>
+                        <p id="wordHelpDeepStatus" class="speaking-audio-status hidden">Loading the full explanation…</p>
+                    </div>
+                </article>
+
+                <div class="speaking-recorder">
+                    <div id="recordClock" class="speaking-clock" aria-live="off">00:00</div>
+                    <button id="recordButton" class="speaking-record" aria-pressed="false">
+                        <span class="speaking-record-dot" aria-hidden="true"></span>
+                        <span id="recordButtonText">Prepare, then speak</span>
+                    </button>
+                    <p id="recordHint">You will get five seconds to prepare. Then say the complete Italian sentence.</p>
+                </div>
+
+                <div id="liveCaptions" class="speaking-live-captions hidden" role="status" aria-live="polite" aria-label="Live captions of your speech">
+                    <span class="speaking-caption-label">Live captions · browser preview (not graded)</span>
+                    <p><span id="captionFinal" class="speaking-caption-final" lang="it"></span><span id="captionInterim" class="speaking-caption-interim" lang="it"></span></p>
+                </div>
+
+                <section id="transcriptPanel" class="speaking-transcript hidden" aria-labelledby="transcriptTitle" aria-live="polite">
+                    <div class="speaking-transcript-head">
+                        <strong id="transcriptTitle">What you said · transcription</strong>
+                        <span id="transcriptUncertain" class="speaking-uncertain-badge hidden">partly uncertain</span>
+                        <span id="durationLabel"></span>
+                    </div>
+                    <p id="transcriptText" lang="it"></p>
+                    <p id="transcriptSource" class="speaking-transcript-source hidden"></p>
+                    <audio id="ownRecording" class="speaking-own-audio hidden" controls preload="metadata"></audio>
+                    <div id="fluencyMetrics" class="speaking-fluency-metrics hidden"></div>
+                    <p class="speaking-transcript-note">The transcript is read-only. Re-record if recognition changed your meaning.</p>
+                    <button id="transcriptWrong" class="speaking-link-button hidden">The transcript looks wrong—check the audio</button>
+                </section>
+
+                <button id="checkButton" class="speaking-primary hidden" disabled>Check spoken Italian</button>
+                <section id="feedback" class="speaking-feedback hidden" aria-live="polite"></section>
+
+                <section id="correctPanel" class="speaking-correct hidden" aria-labelledby="correctTitle">
+                    <div class="speaking-eyebrow">Correct Italian</div>
+                    <p id="correctSentence" lang="it"></p>
+                    <div class="speaking-listen-row">
+                        <select id="pollyVoice" aria-label="Italian AWS Polly voice">
+                            <option value="Beatrice">Beatrice</option>
+                            <option value="Bianca">Bianca</option>
+                            <option value="Lorenzo">Lorenzo</option>
+                        </select>
+                        <button id="playCorrect" class="speaking-secondary">🔊 Play model</button>
+                    </div>
+                    <p id="correctAudioStatus" class="speaking-audio-status" role="status"></p>
+                </section>
+
+                <section id="pronunciationPanel" class="speaking-pronunciation hidden" aria-labelledby="pronunciationTitle">
+                    <div class="speaking-eyebrow">Intelligibility coach</div>
+                    <h3 id="pronunciationTitle"></h3>
+                    <p id="pronunciationTip"></p>
+                    <p id="pronunciationTipFa" lang="fa" dir="rtl"></p>
+                    <p class="speaking-transcript-note">This checks whether a listener can understand you—not whether you sound native.</p>
+                </section>
+
+                <section id="patternPanel" class="speaking-pattern hidden" aria-labelledby="patternTitle">
+                    <div class="speaking-pattern-badge">New pattern · not graded yet</div>
+                    <h3 id="patternTitle"></h3>
+                    <p id="patternExplanation"></p>
+                    <p id="patternExplanationFa" lang="fa" dir="rtl"></p>
+                    <div id="patternAlternativeWrap" class="speaking-pattern-alternative hidden">
+                        <small>Everyday alternative</small>
+                        <p id="patternAlternative" lang="it"></p>
+                    </div>
+                    <p id="patternRegister"></p>
+                    <p id="patternRegisterFa" lang="fa" dir="rtl"></p>
+                    <p class="speaking-pattern-action">Listen to the correct sentence, then repeat it aloud once. You are noticing this pattern—not being tested on it.</p>
+                </section>
+
+                <section id="modelPanel" class="speaking-model hidden">
+                    <div class="speaking-eyebrow">Listen and repeat</div>
+                    <p id="modelAnswer" lang="it"></p>
+                    <button id="playModel" class="speaking-secondary">🔊 Play model answer</button>
+                    <p id="shadowHint">Listen once. Then record yourself repeating the model to unlock the next round.</p>
+                </section>
+
+                <button id="lapBtn" class="speaking-secondary hidden" type="button">⚡ Fluency lap — say it faster</button>
+                <button id="nextRound" class="speaking-primary hidden">Next round →</button>
+            </section>
+
+            <section id="summary" class="speaking-summary hidden">
+                <div class="speaking-intro-icon" aria-hidden="true">✓</div>
+                <div class="speaking-eyebrow">Sprint complete</div>
+                <h2>You showed up in Italian</h2>
+                <div class="speaking-summary-grid">
+                    <div><strong id="summaryRounds">3</strong><span>spoken rounds</span></div>
+                    <div><strong id="summarySeconds">0s</strong><span>seconds spoken</span></div>
+                    <div><strong id="summaryRetries">0</strong><span>repair attempts</span></div>
+                    <div><strong id="summaryHints">0</strong><span>hints used</span></div>
+                </div>
+                <p id="summaryCoach" class="speaking-summary-coach"></p>
+                <button id="newSprint" class="speaking-primary">Start another sprint</button>
+            </section>
+        </main>
+    </div>
+    <script src="/speaking.js?v=26"></script>
+</body>
+</html>

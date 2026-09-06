@@ -704,6 +704,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const previewSection = document.getElementById('previewSection');
     const frontHtml = document.getElementById('frontHtml');
     const backHtml = document.getElementById('backHtml');
+    const pretestGate = document.getElementById('pretestGate');
+    const pretestGuess = document.getElementById('pretestGuess');
+    const pretestSubmit = document.getElementById('pretestSubmit');
+    const pretestSkip = document.getElementById('pretestSkip');
+    let skipNextPretest = false;
+
+    function showPretestGate() {
+        if (!pretestGate) return;
+        pretestGate.classList.remove('hidden');
+        pretestGuess.value = '';
+        pretestSubmit.disabled = false;
+        setTimeout(() => pretestGuess.focus(), 200);
+    }
+
+    function dismissPretestGate() {
+        pretestGate?.classList.add('hidden');
+    }
     const frontAudioControls = document.getElementById('frontAudioControls');
     const backAudioControls = document.getElementById('backAudioControls');
     const productionPreview = document.getElementById('productionPreview');
@@ -793,6 +810,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const word = wordInput.value.trim();
         if (!word) return;
+        // Pretesting (errorful generation) happens on every fresh card
+        // unless the arrival flow already had its retrieval moment.
+        const gateThisCard = !skipNextPretest;
+        skipNextPretest = false;
         const interpretationForRequest =
             selectedInterpretationInput === word
                 ? selectedInterpretation
@@ -1036,6 +1057,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     frontHtml.innerHTML = cleanFront;
                     backHtml.innerHTML = cleanBack;
+                    if (gateThisCard) showPretestGate();
 
                     const productionCard = data.data.production_card_html;
                     if (
@@ -1327,6 +1349,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
+
+    // One-click card creation from other surfaces (e.g. Speaking Lab word help)
+    const requestedWord = new URLSearchParams(location.search).get('word');
+    if (requestedWord) {
+        skipNextPretest = true; // the lab's word-help reveal was the pretest
+        wordInput.value = requestedWord.trim();
+        history.replaceState(null, '', location.pathname);
+        form.requestSubmit();
+    }
+
+    pretestSubmit?.addEventListener('click', dismissPretestGate);
+    pretestSkip?.addEventListener('click', dismissPretestGate);
+    pretestGuess?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            dismissPretestGate();
+        }
+    });
 
     // Check immediately on load, then every 5 seconds
     checkAnkiStatus();

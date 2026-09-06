@@ -169,6 +169,38 @@ def _plain_card_text(value: str, limit: int = 1200) -> str:
     return cleaned[:limit]
 
 
+def _translation_example(
+    word: str,
+    production_back: str,
+    source_back: str,
+) -> tuple[str, str]:
+    """Extract the verified Italian example and its adjacent English line."""
+    answer = _plain_card_text(production_back, limit=1600)
+    answer = re.sub(r"^Answer\s+", "", answer, flags=re.IGNORECASE)
+    answer = re.sub(
+        rf"^{re.escape(str(word or '').strip())}\s+",
+        "",
+        answer,
+        count=1,
+        flags=re.IGNORECASE,
+    ).strip()
+    if not answer or len(answer) > 500:
+        return "", ""
+
+    back = _plain_card_text(source_back, limit=8_000)
+    position = back.find(answer)
+    if position < 0:
+        return "", ""
+    remainder = back[position + len(answer):].strip()
+    match = re.match(r"(.{3,300}?[.!?])(?:\s|$)", remainder)
+    if not match:
+        return "", ""
+    english = match.group(1).strip()
+    if re.search(r"[\u0600-\u06ff]", english):
+        return "", ""
+    return answer, english
+
+
 def discover_practice_candidates(
     invoke_anki,
     *,
@@ -229,6 +261,11 @@ def discover_practice_candidates(
             + max(0, 2500 - factor) / 100
             + min(reps, 20) / 20
         )
+        example_it, example_en = _translation_example(
+            word,
+            back,
+            _field_value(note, "Back"),
+        )
         candidate = {
             "word": word,
             "identity": word.casefold(),
@@ -242,6 +279,8 @@ def discover_practice_candidates(
             "weakness": float(weakness),
             "reference": _plain_card_text(back),
             "cue": _plain_card_text(front, limit=500),
+            "example_it": example_it,
+            "example_en": example_en,
         }
         previous = candidates_by_word.get(candidate["identity"])
         if previous is None or candidate["weakness"] > previous["weakness"]:

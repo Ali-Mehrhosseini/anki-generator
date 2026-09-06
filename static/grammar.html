@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Italian Grammar — Anki Generator</title>
+    <meta name="description" content="Generate Italian grammar flashcards for Anki with AI-powered explanations, examples, and exercises.">
+    <link rel="stylesheet" href="styles.css?v=19">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <script>
+        if (localStorage.getItem('theme') === 'light') {
+            document.documentElement.classList.add('light-mode');
+        }
+    </script>
+</head>
+<body>
+    <div class="aurora-container">
+        <div class="aurora-orb orb-1"></div>
+        <div class="aurora-orb orb-2"></div>
+        <div class="aurora-orb orb-3"></div>
+    </div>
+    <div class="top-right-nav">
+        <a href="/" class="settings-corner-btn" style="text-decoration:none;">🏠 Home</a>
+        <button id="themeToggleBtn" class="settings-corner-btn" style="padding: 12px; min-width: auto;" title="Toggle Dark/Light Mode">🌓</button>
+        <a href="/settings" class="settings-corner-btn" style="text-decoration: none;" title="Anki Settings">⚙️ Settings</a>
+    </div>
+
+    <div class="container" style="position: relative; max-width: 900px;">
+        <header>
+            <div class="flag-wrapper" style="position: relative; display: inline-block;">
+                <div class="flag-banner bounce-anim" style="cursor: default; position: relative;">
+                    <img src="https://flagcdn.com/w160/it.png" class="waving-flag" alt="Italian Flag">
+                    <span>Italian Grammar</span>
+                </div>
+            </div>
+            <div class="header-title-row">
+                <h1 id="mainTitle">📐 Grammar Deck</h1>
+                <div class="status-indicator" id="ankiStatus" title="Checking Anki status..."></div>
+            </div>
+            <p>A1 → B1 curriculum with AI-generated grammar cards</p>
+        </header>
+
+        <nav class="grammar-workspace-nav" aria-label="Grammar workspace">
+            <button type="button" class="grammar-workspace-tab active" data-view="today">Today</button>
+            <button type="button" class="grammar-workspace-tab" data-view="topics">Topics</button>
+            <button type="button" class="grammar-workspace-tab" data-view="create">Create Cards</button>
+        </nav>
+
+        <section class="grammar-view" id="grammarViewToday" data-view-panel="today">
+            <div class="grammar-today-hero minimal-panel">
+                <div>
+                    <div class="grammar-adaptive-eyebrow">Today’s grammar practice</div>
+                    <h2>Turn weak rules into usable Italian</h2>
+                    <p id="todayCoachLine">Loading your Anki-informed practice plan…</p>
+                </div>
+                <button type="button" id="adaptiveStartBtn" class="grammar-adaptive-start">Start Today’s Practice</button>
+            </div>
+
+            <div class="grammar-today-stats" aria-label="Today’s practice plan">
+                <div class="grammar-today-stat minimal-panel"><strong id="todayCardCount">—</strong><span>controlled prompts</span></div>
+                <div class="grammar-today-stat minimal-panel"><strong id="todayMinutes">—</strong><span>estimated minutes</span></div>
+                <div class="grammar-today-stat minimal-panel"><strong id="todayDelayed">—</strong><span>transfer tasks due</span></div>
+            </div>
+
+            <div class="grammar-stage-overview minimal-panel">
+                <div class="grammar-section-heading">
+                    <div><div class="grammar-adaptive-eyebrow">Five-stage mastery</div><h3>Understanding it comes before producing it</h3></div>
+                    <span id="schedulerNote">Anki/FSRS schedules long-term recall</span>
+                </div>
+                <div id="masteryStageGrid" class="grammar-stage-grid"></div>
+            </div>
+
+            <section class="grammar-adaptive-panel minimal-panel" id="adaptivePanel">
+                <div class="grammar-session-steps" id="sessionSteps" aria-label="Session progress">
+                    <span class="active" data-step="controlled">1 · Controlled</span>
+                    <span data-step="free">2 · Free use</span>
+                    <span data-step="conversation">3 · Conversation</span>
+                    <span data-step="speaking">4 · Speaking</span>
+                </div>
+                <div id="adaptiveStatus" class="grammar-adaptive-status">Start when you are ready. Answers stay hidden until you retrieve or retry.</div>
+
+                <div id="adaptiveSession" class="grammar-adaptive-session hidden">
+                    <div class="grammar-adaptive-header">
+                        <span id="adaptiveProgress">1 / 6</span>
+                        <span id="adaptiveTopic"></span>
+                    </div>
+                    <div id="adaptiveFront" class="grammar-adaptive-card"></div>
+                    <div id="adaptiveInputs" class="grammar-adaptive-inputs"></div>
+                    <button type="button" id="adaptiveSubmitBtn" class="grammar-adaptive-submit">Check answer</button>
+                    <div id="adaptiveFeedback" class="grammar-adaptive-feedback hidden"></div>
+                    <button type="button" id="adaptiveNextBtn" class="grammar-adaptive-next hidden">Next challenge →</button>
+                </div>
+
+                <div id="adaptiveTransfer" class="grammar-adaptive-session hidden">
+                    <div class="grammar-adaptive-eyebrow">Free production</div>
+                    <h3>Use it without copying the cards</h3>
+                    <p id="transferPromptEn"></p>
+                    <p id="transferPromptFa" lang="fa" dir="rtl"></p>
+                    <textarea id="transferResponse" rows="5" placeholder="Write 2–4 sentences in Italian…"></textarea>
+                    <button type="button" id="transferSubmitBtn" class="grammar-adaptive-submit">Get focused feedback</button>
+                    <div id="transferFeedback" class="grammar-adaptive-feedback hidden"></div>
+                    <button type="button" id="startConversationBtn" class="grammar-adaptive-next hidden">Continue to conversation →</button>
+                </div>
+
+                <div id="adaptiveConversation" class="grammar-adaptive-session hidden">
+                    <div class="grammar-adaptive-eyebrow">Grammar-controlled conversation</div>
+                    <h3 id="conversationScenario">A short Italian conversation</h3>
+                    <p id="conversationScenarioFa" lang="fa" dir="rtl"></p>
+                    <div id="scenarioChips" class="grammar-scenario-chips hidden" aria-label="Conversation scenarios"></div>
+                    <div id="conversationLog" class="grammar-conversation-log" aria-live="polite"></div>
+                    <textarea id="conversationResponse" rows="3" placeholder="Reply naturally in Italian…"></textarea>
+                    <button type="button" id="conversationSubmitBtn" class="grammar-adaptive-submit">Send reply</button>
+                    <div id="conversationFeedback" class="grammar-adaptive-feedback hidden"></div>
+                    <button type="button" id="startSpeakingBtn" class="grammar-adaptive-next hidden">Continue to speaking →</button>
+                </div>
+
+                <div id="adaptiveSpeaking" class="grammar-adaptive-session hidden">
+                    <div class="grammar-adaptive-eyebrow">Speaking transfer</div>
+                    <h3>Say it before you overthink it</h3>
+                    <p id="speakingPrompt">Give a short spoken answer using today’s target grammar.</p>
+                    <button type="button" id="speakingRecordBtn" class="grammar-record-btn">🎙 Start recording</button>
+                    <textarea id="speakingTranscript" rows="4" placeholder="Your transcript appears here. You can also type it manually."></textarea>
+                    <button type="button" id="speakingSubmitBtn" class="grammar-adaptive-submit">Check spoken grammar</button>
+                    <div id="speakingFeedback" class="grammar-adaptive-feedback hidden"></div>
+                    <button type="button" id="adaptiveFinishBtn" class="grammar-adaptive-next hidden">See session summary →</button>
+                </div>
+
+                <div id="adaptiveSummary" class="grammar-adaptive-session hidden">
+                    <div class="grammar-adaptive-eyebrow">Session complete</div>
+                    <h3>What changed today</h3>
+                    <div id="sessionSummaryContent" class="grammar-session-summary"></div>
+                    <button type="button" id="summaryDoneBtn" class="grammar-adaptive-next">Done</button>
+                </div>
+            </section>
+
+            <div class="grammar-insight-grid">
+                <section class="minimal-panel grammar-insight-panel">
+                    <div class="grammar-section-heading"><div><div class="grammar-adaptive-eyebrow">Weakest now</div><h3>Recommended focus</h3></div></div>
+                    <div id="weakTopicList" class="grammar-insight-list"></div>
+                </section>
+                <section class="minimal-panel grammar-insight-panel">
+                    <div class="grammar-section-heading"><div><div class="grammar-adaptive-eyebrow">Error notebook</div><h3>Patterns worth repairing</h3></div></div>
+                    <div id="errorNotebook" class="grammar-insight-list"></div>
+                </section>
+                <section class="minimal-panel grammar-insight-panel">
+                    <div class="grammar-section-heading"><div><div class="grammar-adaptive-eyebrow">Fossilization watch</div><h3>Across grammar, speech, and words</h3></div></div>
+                    <div id="crossTrainingErrors" class="grammar-insight-list"></div>
+                </section>
+            </div>
+
+            <section class="minimal-panel grammar-dictogloss" id="dictoglossPanel">
+                <div class="grammar-section-heading">
+                    <div><div class="grammar-adaptive-eyebrow">Listen & reconstruct</div><h3>Dictogloss — hear it, rebuild it</h3></div>
+                </div>
+                <p class="grammar-dictogloss-lead">Hear a short text built from a grammar topic you have studied, then reconstruct it word for word. The original stays hidden until you have tried — the reconstruction is where grammar noticing happens.</p>
+                <form id="dictoglossForm">
+                    <input type="text" id="dictoglossTopic" placeholder="Grammar topic, e.g. 'passato prossimo' or 'pronomi indiretti'…" autocomplete="off" required>
+                    <button type="submit" id="dictoglossStartBtn">New text</button>
+                </form>
+                <div id="dictoglossStatus" class="grammar-adaptive-status hidden"></div>
+                <div id="dictoglossSession" class="hidden">
+                    <div class="grammar-dictogloss-meta"><span id="dictoglossLevel"></span><span id="dictoglossFocus"></span></div>
+                    <audio id="dictoglossAudio" controls preload="metadata" class="grammar-dictogloss-audio"></audio>
+                    <p class="grammar-dictogloss-tip">Play it as many times as you need — no peeking — then write exactly what you heard.</p>
+                    <textarea id="dictoglossResponse" rows="4" placeholder="Reconstruct the Italian text from memory…" lang="it"></textarea>
+                    <button type="button" id="dictoglossCheckBtn" class="grammar-adaptive-submit">Check reconstruction</button>
+                    <div id="dictoglossResult" class="grammar-adaptive-feedback hidden"></div>
+                    <button type="button" id="dictoglossRetryBtn" class="grammar-adaptive-next hidden">Try once more</button>
+                </div>
+            </section>
+        </section>
+
+        <section class="grammar-view hidden" id="grammarViewTopics" data-view-panel="topics">
+            <div class="grammar-view-intro"><div><div class="grammar-adaptive-eyebrow">Curriculum</div><h2>Explore A1–B1 grammar</h2><p>Mastery reflects recognition, controlled production, free use, and speaking.</p></div></div>
+            <div class="grammar-filter-bar minimal-panel">
+                <input type="text" id="topicSearch" class="grammar-search" placeholder="🔍 Search topics..." autocomplete="off">
+                <div class="grammar-level-filters">
+                    <button class="grammar-level-btn active" data-level="all">All</button>
+                    <button class="grammar-level-btn" data-level="A1">🟢 A1</button>
+                    <button class="grammar-level-btn" data-level="A2">🔵 A2</button>
+                    <button class="grammar-level-btn" data-level="B1">🟣 B1</button>
+                </div>
+                <div class="grammar-progress" id="progressSummary"></div>
+            </div>
+            <div id="topicGrid" class="grammar-topic-grid"></div>
+        </section>
+
+        <section class="grammar-view hidden" id="grammarViewCreate" data-view-panel="create">
+            <div class="grammar-view-intro"><div><div class="grammar-adaptive-eyebrow">Card studio</div><h2>Create high-quality practice material</h2><p>Generated cards are validated before they can enter adaptive practice.</p></div></div>
+            <div class="grammar-mode-switcher minimal-panel" id="modeSwitcher">
+                <button type="button" class="grammar-mode-tab active" data-mode="standard"><span class="mode-tab-icon">🎴</span><div class="mode-tab-text"><span class="mode-tab-title">Practice Cards</span><span class="mode-tab-desc">Active-recall form gaps</span></div></button>
+                <button type="button" class="grammar-mode-tab" data-mode="input"><span class="mode-tab-icon">🧭</span><div class="mode-tab-text"><span class="mode-tab-title">Structured Input</span><span class="mode-tab-desc">Interpret before you produce</span></div></button>
+                <button type="button" class="grammar-mode-tab" data-mode="contrast"><span class="mode-tab-icon">⚖️</span><div class="mode-tab-text"><span class="mode-tab-title">Contrast Challenges</span><span class="mode-tab-desc">Minimal-pair confusers</span></div></button>
+                <button type="button" class="grammar-mode-tab" data-mode="mistake"><span class="mode-tab-icon">🔍</span><div class="mode-tab-text"><span class="mode-tab-title">Spot the Mistake</span><span class="mode-tab-desc">Trova l'Errore bug hunters</span></div></button>
+            </div>
+            <div class="input-section minimal-panel">
+                <form id="grammarForm">
+                    <input type="text" id="topicInput" placeholder="Enter a grammar topic, e.g. 'pronomi indiretti' or 'when to use il vs lo'..." required autocomplete="off">
+                    <button type="submit" id="generateBtn"><span class="btn-text">Generate Cards</span></button>
+                </form>
+                <div id="progressContainer" class="progress-container hidden"><div class="activity-header"><div class="pulse-dot"></div><span>Live Generation Status</span></div><div id="activityLog" class="activity-log"></div></div>
+                <div id="statusMessage" class="hidden"></div>
+            </div>
+
+            <div class="preview-section hidden" id="previewSection">
+            <div class="grammar-preview-header">
+                <div>
+                    <h2 id="previewTopicTitle">Grammar Cards</h2>
+                    <p id="previewTopicSubtitle" style="opacity:0.7;font-size:0.9rem;margin-top:2px;"></p>
+                </div>
+                <div class="grammar-card-nav">
+                    <button id="prevCardBtn" class="grammar-nav-btn">← Prev</button>
+                    <span id="cardCountBadge" class="grammar-card-badge">1 / 6</span>
+                    <button id="nextCardBtn" class="grammar-nav-btn">Next →</button>
+                </div>
+            </div>
+
+            <!-- Card pills selector -->
+            <div id="cardPillsContainer" class="grammar-card-pills"></div>
+
+            <div class="card-container">
+                <div class="card-side minimal-panel" id="frontPreview">
+                    <div class="side-label">Front</div>
+                    <div class="html-content" id="frontHtml"></div>
+                </div>
+                <div class="card-side minimal-panel" id="backPreview">
+                    <div class="side-label">Back</div>
+                    <div class="html-content" id="backHtml"></div>
+                </div>
+            </div>
+            <div class="grammar-save-bar" id="saveBar">
+                <button id="saveToAnkiBtn" class="grammar-save-btn">📥 Save All Cards to Anki</button>
+                <span id="saveStatus"></span>
+            </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="grammar.js?v=5"></script>
+    <script>
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                document.documentElement.classList.toggle('light-mode');
+                const isLight = document.documentElement.classList.contains('light-mode');
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            });
+        }
+    </script>
+</body>
+</html>

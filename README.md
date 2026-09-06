@@ -7,6 +7,7 @@ Instead of manually searching for translations, conjugations, and downloading au
 ## 🚀 Key Features
 
 - **Multi-Language Support**: Currently supports Italian, Spanish, French, German, and Japanese.
+- **Five-Stage Grammar Mastery**: Interpretation (Processing Instruction), recognition, controlled production, free use, and speaking — with scenario roleplay, mistake-category explanations, and error-driven topic recommendations.
 - **Smart Generation**: Powered by a quality-first Gemini fallback chain, it automatically generates:
   - Direct translations (in English, Persian, or both).
   - Contextual example sentences.
@@ -16,6 +17,7 @@ Instead of manually searching for translations, conjugations, and downloading au
   - A clear note when a related part of speech has no natural common form.
   - One or two common collocations and a compact part-of-speech-specific Italian grammar summary.
 - **Active Recall**: Optionally creates a second card from the same Anki note, with a meaning cue and sentence gap on the Front and the Italian answer on the Back.
+- **Card learning boosters**: every new card carries an **emoji pictogram** for dual coding of concrete senses and a **spoken-frequency chip** (📊 top 500/1000/3000) so you always know whether a word deserves priority. Each Back also ends with a static **"✏️ My sentence"** box: edit the note in Anki and replace it with a sentence from your own life — self-generated examples are retained far better than read ones. (Keyword-method mnemonics are available on demand in the Speaking Lab's word-help 🧠 button rather than on the card.)
 - **Native Audio**: Generates the target-language word, example, conjugations, related forms, and related examples with **AWS Polly**, plus the English Back meaning with the US-English Tiffany generative voice.
 - **Focused Playback**: On answer reveal, automatically plays only the main word for non-verbs or the conjugations for verbs; English meanings, examples, and Word Family clips are click-to-play.
 - **Persian Typography**: Bundles Vazirmatn for consistent offline Persian text and right-to-left rendering in Anki.
@@ -99,6 +101,10 @@ Vazirmatn as the profile's non-ASCII font. Exact Vazirmatn image rendering is
 also available through iTerm2 inline images: set
 `ANKI_TEACH_PERSIAN_MODE="image"` in `.env`. Image mode is visually exact but
 its Persian paragraphs cannot be selected as text.
+
+Reading lessons also apply **input enhancement**: in color-capable terminals,
+the vocabulary and grammar forms taught in each part are bolded inside the
+Italian source text, so your eye meets the target forms while reading.
 
 The normal commands remain unchanged:
 
@@ -232,6 +238,94 @@ anki --upgrade-production-audio --apply
 This updates only the app-owned card templates. It reuses each note's existing
 word recording and makes no Gemini or Polly request.
 
+## Five-stage adaptive grammar practice
+
+The Grammar Deck implements the current evidence-based grammar acquisition
+loop. Each curriculum topic moves through five stages, and mastery now
+weights all of them:
+
+1. **Recognition** — Anki/FSRS review strength on the saved cards.
+2. **Interpretation (Structured Input)** — before producing anything, you
+   answer a meaning question that can only be resolved by processing the
+   target form. Generate these with the new **Structured Input** mode in the
+   Card Studio; topics that own interpretation cards are gated on this stage
+   for mastery. This is VanPatten's Processing Instruction: every card is
+   built so word order and the first noun cannot give the answer away.
+3. **Controlled** — typed form production with one retry before reveal.
+4. **Free use** — transfer writing evaluated against the target grammar only.
+5. **Speaking** — the same targets under conversational time pressure.
+
+Additional 2026-era workspace features:
+
+- **Clickable word help (hint ladder)** — in the Speaking Sprint, tap any
+  English word in the prompt. A popover offers a first-letter shape hint with
+  a guess box; after two wrong guesses (or on demand) it reveals the Italian
+  lemma, gender, a one-line English/Persian meaning, and a short example.
+  The Gemini hint describes the concept without ever containing the Italian
+  answer, so the retrieval attempt stays honest. The reveal has a **Play it**
+  button (temporary Polly audio) and **Add to Anki** — a one-click jump to
+  the generator with the word prefilled and generation started
+  (`/?word=…`). Every peek, guess, and reveal is stored in the Learning Lab
+  history; words looked up two or more times surface on the Fossilization
+  watch dashboard, while words you keep guessing correctly stay off it.
+- **Contextual deep dive on the same click** — while the hint loads, a second
+  parallel request explains *why this word is the natural choice for this
+  exact sentence*, *which inflected form you need and why* (person, tense,
+  agreement, or a required subjunctive), and *one important beginner note*
+  (register, common mistake, or collocation) — all in parallel English and
+  Persian. It never writes the full translated sentence for you.
+- **Keyword-method memory tricks** — after a word is revealed, the
+  **🧠 Memory trick** button generates a two-stage keyword mnemonic: a
+  Persian sound-alike keyword plus one vivid mental picture linking it to
+  the meaning (meta-analytically supported for beginner vocabulary).
+- **Guess before you learn (pretesting)** — when a freshly generated card
+  preview opens, the Back is covered by a guess prompt: lock in a guess
+  (even a wrong one) or skip. Attempting before studying measurably
+  improves retention; the one-click `?word=` flow skips the gate because
+  the Speaking Lab's word-help reveal was already its retrieval moment.
+
+## Dictogloss — listen and reconstruct
+
+The Grammar Deck's Today view includes a dictogloss (grammar dictation)
+mode, the evidence-backed listening→grammar bridge: pick a studied topic,
+and the app generates a 12–45 word Italian text that uses the target
+grammar at least twice, reads it aloud with AWS Polly, and keeps the
+original server-side. Play the audio as often as needed, reconstruct the
+text from memory, then check: Gemini compares your reconstruction with the
+original grammar-first, gives one focused retry with the original still
+hidden, and reveals the true text after the final attempt. Results feed the
+topic stats and the delayed-review queue.
+
+## Reading coverage in `anki teach`
+
+Before building a lesson from a pasted article, `anki teach` now measures
+your **lexical coverage**: it reads every `Word` field in your deck and
+reports what percentage of the article's unique words you already know.
+Research puts comfortable unassisted reading at ~98% coverage, so the
+report tells you whether the article is ideal reading, manageable (with the
+unknown words listed — they will repeat across articles on the same topic,
+so stay on that topic for narrow reading), or above your level.
+
+- **Explain my answer** — after a wrong controlled, transfer, or speaking
+  attempt, a button asks Gemini to name the mistake category and give a
+  self-check hint. It never reveals the correct form, so retrieval practice
+  survives the explanation.
+- **Scenario roleplay** — the conversation stage offers six situational
+  roleplays (meeting a classmate, the market, telling your weekend, finding a
+  room, the doctor, plans and dreams) woven around your session's target
+  grammar. Pick a scenario chip before the first turn; your choice persists
+  for the session.
+- **Session report** — the session summary now shows per-stage accuracy,
+  the session's error patterns, and per-topic outcomes with one-tap
+  **Repair cards** buttons that open the Card Studio in mistake mode for the
+  failed topic.
+- **Fossilization watch** — a merged view of recurring errors across grammar
+  practice, the Speaking Lab, and word practice (`/api/insights/errors`),
+  so repeated mistakes from any surface appear in one place.
+- **Error-driven recommendations** — topic cards in the curriculum browser
+  show a **Study next** badge when your recent error evidence deterministically
+  maps to that topic (mastered topics are never recommended).
+
 ## Adaptive production practice
 
 After reviewing some production-recall cards, run:
@@ -250,6 +344,66 @@ Practice history is stored locally under `.anki-generator/practice/`. Original
 notes, scheduling, and review history remain read-only. When the same error
 occurs twice, the CLI offers an optional correction card in
 `Italian::Practice Corrections`; it is created only after an explicit `y`.
+
+## Voice-only Speaking Sprint
+
+Open **Speaking Lab** from the website home page after reviewing some
+production-recall cards. Each sprint contains three short English-to-Italian
+translations built from verified examples on already-studied cards. Each round
+uses one English sentence and one required Italian target word. Typing is
+unavailable and live captions show your recognized words on screen while you
+talk. The captions are display-only: when recording ends, the checked
+transcript still comes from Gemini's direct audio review.
+After evaluation, a persistent **What you said · transcription** panel shows
+the recognized Italian beside the feedback and correct model sentence. It
+remains visible while the learner reviews a mistake and prepares a retry.
+
+Gemini checks whether every target was used naturally. A missed or incorrect
+target requires one complete spoken retry. After two unsuccessful attempts,
+the lab plays a corrected model and requires spoken repetition before the next
+round unlocks. The app stores the transcript, duration, and feedback in
+`.anki-generator/learning-lab/`; it never stores the raw microphone recording.
+Microphone permission is required. Gemini evaluates and transcribes the
+temporary in-memory clip directly because embedded browser speech services
+are unreliable. Before any upload, the browser measures the microphone signal
+locally and rejects silent recordings. A silent attempt is not sent to Gemini,
+is not added to practice time, and does not count toward the daily goal. The
+clip is discarded immediately after the request.
+
+The three rounds form an adaptive ladder: round one shows a short Italian
+starting phrase, while rounds two and three hide it behind an optional hint.
+Failed target words enter a repair queue and are prioritized until used
+correctly. If the browser transcript looks wrong, the learner can ask Gemini
+to judge the temporary audio directly. Audio fallback combines transcription
+and teaching feedback in one request, and the screen tracks a five-sentence
+daily goal without storing raw audio.
+
+After every evaluated response, the lab displays the verified correct Italian
+sentence from the source card. Its **Play with AWS Polly** button generates
+temporary Italian audio with the Beatrice voice; the MP3 is played in the
+browser and is not added to Anki or written to the learning history.
+
+Authentic source sentences are not simplified merely to avoid unfamiliar
+grammar. Gemini compares each sentence with the learner's grammar-card history
+and locally remembered pattern exposures. A genuinely new structure appears
+as a concise **New pattern** notice with English/Persian explanation, register
+guidance, and an everyday alternative. A first-exposure grammar mistake does
+not cause a failed vocabulary attempt; the learner listens with Polly and
+repeats the correct sentence once. Repeated or explicitly studied patterns can
+then be graded normally.
+
+The learner can choose **Change sentence** before recording to skip a prompt
+without penalty. The replacement comes from a different verified, previously
+studied Anki card, and skipped sentences are not repeated during that sprint.
+
+Every successful round also offers an optional **fluency lap (4/3/2 drill)**:
+say the same sentence three more times, each lap with 75% of the previous
+one's time. Laps are pure pace work — the clock is the only judge, nothing is
+sent to Gemini, and they never affect scoring or the daily goal. When a
+pattern needs repair, the model-audio step became **true shadowing**: the
+recorder opens while Polly is still speaking, so the learner speaks along
+with the model from the first word instead of after it, and the take is kept
+for playback when the model ends.
 
 The website's **Revert added features in Anki…** button handles same-note
 features created by the normal generator. It does not undo these isolated CLI

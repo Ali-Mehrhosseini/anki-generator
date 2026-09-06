@@ -25,10 +25,12 @@ load_dotenv(BASE_DIR / ".env")
 # Import functions from the main backend
 from main import (
     apply_versioned_audio_filenames,
+    build_recognition_front_retry_prompt,
     GEMINI_MODEL_CHAIN,
     LANGUAGE_CONFIGS,
     PRODUCTION_BACK_FIELD,
     ContextCardValidationError,
+    FrontCardValidationError,
     ProductionCardValidationError,
     PRODUCTION_FRONT_FIELD,
     PRODUCTION_TEMPLATE_BACK,
@@ -58,6 +60,20 @@ from main import (
     generate_english_meaning_audio,
     generate_word_family_audios,
     normalize_learning_features,
+    GRAMMAR_DECK_NAME,
+    GRAMMAR_NOTE_TYPE,
+    GRAMMAR_FIELDS,
+    GRAMMAR_TEMPLATE_NAME,
+    GRAMMAR_TEMPLATE_FRONT,
+    GRAMMAR_TEMPLATE_BACK,
+    GRAMMAR_TOPICS,
+    GRAMMAR_CONTRAST_TOPICS,
+    GRAMMAR_MISTAKE_TOPICS,
+    generate_grammar_card,
+    generate_grammar_audio,
+    get_grammar_topics_by_level,
+    get_grammar_topics_by_mode,
+    _resolve_grammar_topic,
 )
 from production_backfill import (
     BackfillSafetyError,
@@ -87,6 +103,7 @@ from practice_mode import (
     select_practice_targets,
     update_practice_state,
 )
+from grammar_practice import anki_metadata_fields
 
 # Read env variables
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -178,17 +195,42 @@ def _generate_content_with_production_retry(*args, **kwargs):
     """Retry once when a generated card fails a recoverable validation."""
     try:
         return generate_content(*args, **kwargs)
-    except (ProductionCardValidationError, ContextCardValidationError) as error:
+    except (
+        ProductionCardValidationError,
+        ContextCardValidationError,
+        FrontCardValidationError,
+    ) as error:
         if isinstance(error, ContextCardValidationError):
             print(
                 "↻ The card drifted away from the supplied context; "
                 "regenerating it once…"
             )
-        else:
+        elif isinstance(error, ProductionCardValidationError):
             print(
                 "↻ The production-recall sentence was inconsistent; "
                 "regenerating the card once…"
             )
+        else:
+            print(
+                "↻ The recognition Front was malformed; "
+                "regenerating the card once…"
+            )
+            retry_args = list(args)
+            original_prompt = (
+                retry_args[3]
+                if len(retry_args) > 3
+                else kwargs.get("custom_prompt")
+            )
+            repair_prompt = build_recognition_front_retry_prompt(
+                original_prompt,
+                error,
+            )
+            if len(retry_args) > 3:
+                retry_args[3] = repair_prompt
+                return generate_content(*retry_args, **kwargs)
+            retry_kwargs = dict(kwargs)
+            retry_kwargs["custom_prompt"] = repair_prompt
+            return generate_content(*retry_args, **retry_kwargs)
         return generate_content(*args, **kwargs)
 
 
@@ -271,8 +313,56 @@ def _is_legacy_production_template(template):
     )
 
 
+def ensure_note_type(model_name):
+    """Create the note type from scratch if it doesn't exist yet.
+
+    This lets the app work on a fresh Anki install without requiring the
+    user to manually create the 'Italian Vocab' note type.
+    """
+    existing_models = invoke_anki("modelNames") or []
+    if model_name in existing_models:
+        return  # Nothing to do
+
+    print(f"📋 Note type '{model_name}' not found — creating it now…")
+    invoke_anki("createModel", {
+        "modelName": model_name,
+        "inOrderFields": list(REQUIRED_ANKI_FIELDS),
+        "css": (
+            ".card {\n"
+            "    font-family: arial;\n"
+            "    font-size: 20px;\n"
+            "    line-height: 1.5;\n"
+            "    text-align: center;\n"
+            "    color: black;\n"
+            "    background-color: white;\n"
+            "}\n"
+        ),
+        "cardTemplates": [
+            {
+                "Name": "Card 1",
+                "Front": (
+                    "<div style='font-family: \"Arial\"; font-size: 20px;'>"
+                    "{{Front}}</div>\n"
+                    "<div style='font-family: \"Arial\"; font-size: 20px;'>"
+                    "{{WordAudio}}</div>"
+                ),
+                "Back": (
+                    "{{FrontSide}}\n\n"
+                    "<hr id=answer>\n\n"
+                    "<div style='font-family: \"Arial\"; font-size: 20px;'>"
+                    "{{Back}}</div>"
+                ),
+            }
+        ],
+    })
+    print(f"✅ Note type '{model_name}' created.")
+
+
 def ensure_production_card_model(model_name):
     """Safely add the app-owned conditional production card type."""
+    # Auto-create the note type if this is a fresh Anki install.
+    ensure_note_type(model_name)
+
     initial_fields = invoke_anki(
         "modelFieldNames",
         {"modelName": model_name},
@@ -919,6 +1009,7 @@ def add_word_to_anki(
 
     if features.get("listening_card"):
         try:
+            ensure_note_type(NOTE_TYPE)
             initial_fields = invoke_anki(
                 "modelFieldNames",
                 {"modelName": NOTE_TYPE},
@@ -933,6 +1024,7 @@ def add_word_to_anki(
 
     if features.get("sentence_cloze"):
         try:
+            ensure_note_type(NOTE_TYPE)
             initial_fields = invoke_anki(
                 "modelFieldNames",
                 {"modelName": NOTE_TYPE},
@@ -1273,6 +1365,37 @@ def _print_lesson_subheading(label):
     print("\n" + _terminal_style(f"    {label.upper()}", "1", "36"))
 
 
+def _highlight_italian_terms(value, terms):
+    """Typographical input enhancement: bold known forms inside the text."""
+    text = _clean_terminal_text(value)
+    needles = sorted({
+        cleaned
+        for term in (terms or [])
+        if len(cleaned := _clean_terminal_text(term)) >= 2
+    }, key=len, reverse=True)
+    if not text or not needles or not _terminal_uses_color():
+        return text
+    try:
+        pattern = re.compile(
+            "(" + "|".join(re.escape(needle) for needle in needles) + ")",
+            re.IGNORECASE,
+        )
+    except re.error:
+        return text
+    return pattern.sub(lambda match: f"\033[1m{match.group(1)}\033[0m", text)
+
+
+def _part_highlight_terms(part):
+    """Collect the vocabulary and grammar forms worth bolding in one part."""
+    terms = []
+    for item in _safe_lesson_entries(part.get("learning_items")):
+        terms.append(item.get("term"))
+        terms.append(item.get("card_target"))
+    for point in _safe_lesson_entries(part.get("grammar_points")):
+        terms.append(point.get("pattern"))
+    return terms
+
+
 def _print_story_parts(parts):
     """Render a complete local deep dive for each ordered story part."""
     all_items = []
@@ -1286,7 +1409,12 @@ def _print_story_parts(parts):
         _print_lesson_heading(
             f"Part {part_index} of {total_parts} · {part_title}"
         )
-        _print_lesson_field("Italian", part.get("source_text"))
+        _print_lesson_field(
+            "Italian",
+            _highlight_italian_terms(
+                part.get("source_text"), _part_highlight_terms(part)
+            ),
+        )
         _print_lesson_field("English", part.get("translation_en"))
         _print_lesson_field("Persian", part.get("translation_fa"))
         _print_lesson_field("Focus", part.get("learning_focus"))
@@ -1387,6 +1515,13 @@ def print_reading_lesson(lesson):
         _print_lesson_field("English", summary_en)
         _print_lesson_field("Persian", summary_fa)
 
+    lesson_items = _safe_lesson_entries(lesson.get("learning_items"))
+    lesson_grammar = _safe_lesson_entries(lesson.get("grammar_points"))
+    lesson_terms = [
+        *(item.get("term") for item in lesson_items),
+        *(item.get("card_target") for item in lesson_items),
+        *(point.get("pattern") for point in lesson_grammar),
+    ]
     sections = _safe_lesson_entries(lesson.get("section_explanations"))
     if sections:
         _print_lesson_heading("Guided reading · section by section")
@@ -1401,7 +1536,7 @@ def print_reading_lesson(lesson):
             focus = str(section.get("learning_focus") or "").strip()
             number = f"{index:02d}  "
             _print_wrapped(
-                excerpt or "Section",
+                _highlight_italian_terms(excerpt, lesson_terms) or "Section",
                 first=number,
                 rest=" " * len(number),
                 style=("1",),
@@ -1528,6 +1663,102 @@ def choose_lesson_items_cli(
         )
 
 
+def _token_set(text):
+    """Unique lowercase word tokens of a text, longest first."""
+    return sorted({
+        token.casefold()
+        for token in re.findall(r"[^\W\d_]{2,}", text, re.UNICODE)
+    }, key=len, reverse=True)
+
+
+def _word_is_known(token, known_words):
+    """Lemma-based match with a small tolerance for regular inflection."""
+    for known in known_words:
+        if token == known:
+            return True
+        # Same stem, only the final letter differs (luce/luci, casa/case).
+        if len(token) >= 3 and len(known) >= 3 and token[:-1] == known[:-1]:
+            return True
+        if (
+            len(known) >= 3
+            and token.startswith(known)
+            and len(token) - len(known) <= 3
+        ):
+            return True
+        if (
+            len(token) >= 3
+            and known.startswith(token)
+            and len(known) - len(token) <= 2
+        ):
+            return True
+    return False
+
+
+def _known_vocabulary(invoke_anki_func, deck_name):
+    """Everything the learner already has as a Word field in the deck."""
+    if not deck_name:
+        return set()
+    try:
+        note_ids = invoke_anki_func(
+            "findNotes", {"query": f'deck:"{deck_name}"'}
+        ) or []
+    except Exception:
+        return set()
+    known = set()
+    note_ids = list(note_ids)
+    for start in range(0, len(note_ids), 500):
+        chunk = note_ids[start:start + 500]
+        for note in invoke_anki_func("notesInfo", {"notes": chunk}) or []:
+            fields = note.get("fields") or {}
+            for name, field in fields.items():
+                if str(name).casefold() == "word":
+                    value = str((field or {}).get("value") or "").strip()
+                    if value and " " not in value:
+                        known.add(value.casefold())
+                    break
+    return known
+
+
+def print_reading_coverage(source_text, invoke_anki_func):
+    """Report how much of an article the learner can already read.
+
+    Research puts comfortable unassisted reading at roughly 98% known-word
+    coverage; below that, the pre-taught unknown words matter more than the
+    lesson itself.
+    """
+    deck_name = str(globals().get("DECK_NAME") or "")
+    known = _known_vocabulary(invoke_anki_func, deck_name)
+    tokens = _token_set(source_text)
+    if not tokens:
+        return
+    unknown = [token for token in tokens if not _word_is_known(token, known)]
+    coverage = round((1 - len(unknown) / len(tokens)) * 100, 1)
+    print(_terminal_style("COVERAGE", "1", "36"))
+    if not known:
+        print("Deck      No studied words found — generating the lesson anyway.")
+        return
+    print(
+        f"Known     {coverage}% of {len(tokens)} unique words"
+        f" ({len(unknown)} unknown)"
+    )
+    if unknown:
+        shown = ", ".join(unknown[:20]) + ("…" if len(unknown) > 20 else "")
+        print(f"New       {shown}")
+    if coverage >= 98:
+        print("Level     Comfortable reading — ideal for extensive reading.")
+    elif coverage >= 95:
+        print(
+            "Level     Manageable. These unknown words will repeat across"
+            " articles on this same topic — read more like it next"
+            " (narrow reading)."
+        )
+    else:
+        print(
+            "Level     Above your comfortable reading level. A shorter or"
+            " simpler text on this same topic would serve you better."
+        )
+
+
 def _run_teacher_cli(args):
     """Create a clipboard lesson, then optionally use the normal card flow."""
     try:
@@ -1544,6 +1775,7 @@ def _run_teacher_cli(args):
     print(_terminal_style("─" * _terminal_text_width(), "36"))
     print(f"Source    {word_count:,} words · {line_count:,} text lines")
     print("Anki      No changes until you select cards")
+    print_reading_coverage(source_text, invoke_anki)
     try:
         _require_generation_keys(gemini=False, aws=False, teach=True)
         teacher_gemini_key = GEMINI_TEACH_API_KEY or GEMINI_API_KEY
@@ -1862,6 +2094,13 @@ def build_parser():
     parser.add_argument("--sentence-cloze", action="store_true", help="Enable sentence cloze card (contextual gap-fill)")
     parser.add_argument("--no-sentence-cloze", action="store_true", help="Do not create a sentence cloze card")
     parser.add_argument("--original-card", action="store_true", help="Disable all optional learning features")
+    parser.add_argument("--list", action="store_true", help="List grammar curriculum topics")
+    parser.add_argument("--all", action="store_true", help="Generate all grammar curriculum cards")
+    parser.add_argument("--level", choices=["A1", "A2", "B1", "a1", "a2", "b1"], help="Specify grammar level (A1, A2, B1)")
+    parser.add_argument("--contrast", action="store_true", help="Generate contrastive minimal-pair challenge cards (e.g. lo vs gli, essere vs avere)")
+    parser.add_argument("--mistakes", action="store_true", help="Generate 'Spot & Fix the Mistake' error-detection cards")
+    parser.add_argument("--contrast-list", action="store_true", help="List all built-in contrast challenge topics")
+    parser.add_argument("--mistakes-list", action="store_true", help="List all built-in error hunter topics")
 
     migration = parser.add_mutually_exclusive_group()
     migration.add_argument(
@@ -2755,7 +2994,509 @@ def _run_recall_sort_field_cli(args):
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Grammar CLI
+# ---------------------------------------------------------------------------
+
+def ensure_grammar_model_and_deck():
+    """Create the Italian Grammar note type and deck in Anki if needed."""
+    # Check if the note type exists
+    existing_models = invoke_anki("modelNames") or []
+    if GRAMMAR_NOTE_TYPE not in existing_models:
+        print(f"   Creating note type '{GRAMMAR_NOTE_TYPE}'…")
+        invoke_anki("createModel", {
+            "modelName": GRAMMAR_NOTE_TYPE,
+            "inOrderFields": list(GRAMMAR_FIELDS),
+            "css": (
+                ".card { font-family: -apple-system, Helvetica, Arial, sans-serif; "
+                "font-size: 20px; text-align: center; color: black; "
+                "background-color: white; }\n"
+                "@font-face { font-family: 'Vazirmatn'; "
+                "src: url('_Vazirmatn-Regular.ttf'); font-weight: 400; }\n"
+                "@font-face { font-family: 'Vazirmatn'; "
+                "src: url('_Vazirmatn-SemiBold.ttf'); font-weight: 600; }"
+            ),
+            "cardTemplates": [{
+                "Name": GRAMMAR_TEMPLATE_NAME,
+                "Front": GRAMMAR_TEMPLATE_FRONT,
+                "Back": GRAMMAR_TEMPLATE_BACK,
+            }],
+        })
+    else:
+        existing_fields = invoke_anki(
+            "modelFieldNames", {"modelName": GRAMMAR_NOTE_TYPE}
+        ) or []
+        for field_name in GRAMMAR_FIELDS:
+            if field_name not in existing_fields:
+                invoke_anki("modelFieldAdd", {
+                    "modelName": GRAMMAR_NOTE_TYPE,
+                    "fieldName": field_name,
+                })
+                existing_fields.append(field_name)
+
+    # Create the deck if needed
+    existing_decks = invoke_anki("deckNames") or []
+    if GRAMMAR_DECK_NAME not in existing_decks:
+        print(f"   Creating deck '{GRAMMAR_DECK_NAME}'…")
+        invoke_anki("createDeck", {"deck": GRAMMAR_DECK_NAME})
+
+    # Install font assets
+    ensure_anki_font_assets()
+
+
+def check_grammar_duplicate(topic):
+    """Check if a grammar topic already exists in the grammar deck."""
+    try:
+        escaped_deck = _anki_search_literal(GRAMMAR_DECK_NAME)
+        escaped_topic = _anki_search_literal(topic)
+        query = f'deck:"{escaped_deck}" Topic:"{escaped_topic}"'
+        notes = invoke_anki("findNotes", {"query": query})
+        return bool(notes)
+    except Exception:
+        return False
+
+
+def add_grammar_to_anki(topic_input, gemini_api_key=None, aws_access_key=None, aws_secret_key=None, mode="standard"):
+    """Generate and add atomic active-recall grammar flashcards to Anki across modes. Returns count of added cards."""
+    api_key = gemini_api_key or GEMINI_API_KEY
+    aws_access = aws_access_key or AWS_ACCESS_KEY
+    aws_secret = aws_secret_key or AWS_SECRET_KEY
+
+    valid_mode = (
+        mode if mode in ("standard", "contrast", "mistake", "input")
+        else "standard"
+    )
+    topic_key, topic_info = _resolve_grammar_topic(topic_input, mode=valid_mode)
+    display_name = topic_info["title_it"] if topic_info else topic_input
+
+    mode_headers = {
+        "contrast": "⚖️ Contrast Challenge",
+        "mistake": "🔍 Trova l'Errore (Spot & Fix Mistake)",
+        "input": "🧭 Structured Input (Interpretation)",
+        "standard": "📐 Grammar Practice",
+    }
+    print(f"\n{mode_headers.get(valid_mode, '📐 Grammar')}: {display_name}")
+
+    # Ensure the note type and deck exist
+    ensure_grammar_model_and_deck()
+
+    # Generate the cards
+    print(f"   Gemini: generating {valid_mode} grammar cards…")
+    try:
+        data = generate_grammar_card(topic_input, api_key, mode=valid_mode)
+    except Exception as error:
+        print(f"   ❌ {_format_gemini_error(error)}")
+        return 0
+
+    if data.get("error"):
+        print(f"   ❌ Gemini: {data['error']}")
+        return 0
+
+    cards = data.get("cards") or []
+    if not cards:
+        print("   ❌ Gemini returned no cards for this topic.")
+        return 0
+
+    model = str(data.get("_gemini_model") or "unknown")
+    level = str(data.get("level") or "A1")
+    topic_name = str(data.get("topic") or display_name).strip()
+    topic_en = str(data.get("topic_en") or "").strip()
+
+    print(f"   Model: {model}")
+    print(f"   Topic: {topic_name} ({topic_en}) · Level {level}")
+    print(f"   Generated {len(cards)} {valid_mode} cards:")
+    for idx, card in enumerate(cards, start=1):
+        if valid_mode == "contrast":
+            label = card.get("pair_label") or f"{card.get('sentence_a_target')} vs {card.get('sentence_b_target')}"
+            print(f"     {idx}. {_terminal_style(label, '1', '35')}")
+        elif valid_mode == "mistake":
+            bad = card.get("error_element") or "mistake"
+            corr = card.get("corrected_element") or "correction"
+            print(f"     {idx}. ❌ {bad} → {_terminal_style(corr, '1', '32')}")
+        else:
+            target = card.get("target_form", "")
+            cue = card.get("cue_en", "")
+            print(f"     {idx}. {_terminal_style(target, '1', '32')} — {cue}")
+
+    # Generate audio for each card
+    audios = {}
+    if aws_access and aws_secret:
+        print(f"\n   Polly: generating audio for {len(cards)} {valid_mode} cards…")
+        try:
+            audios = generate_grammar_audio(data, aws_access, aws_secret)
+            total = sum(len(b) for b in audios.values())
+            print(f"   Polly: {len(audios)} clips, {total:,} bytes")
+        except Exception as error:
+            print(f"   ⚠️ Audio skipped: {format_polly_error(error)}")
+
+    # Store audio files in Anki media
+    topic_slug = topic_name.lower()
+    topic_slug = re.sub(r"[^a-z0-9]+", "_", topic_slug).strip("_")
+
+    card_audio_map = {}
+    for idx in range(1, len(cards) + 1):
+        card_filenames = []
+        if valid_mode == "contrast":
+            for sent_key, suffix in ((f"_card{idx}_senta", "senta"), (f"_card{idx}_sentb", "sentb")):
+                if sent_key in audios:
+                    fn = f"grammar_{topic_slug}_c{idx}_{suffix}.mp3"
+                    try:
+                        invoke_anki("storeMediaFile", {
+                            "filename": fn,
+                            "data": base64.b64encode(audios[sent_key]).decode("ascii"),
+                        })
+                        card_filenames.append(fn)
+                    except Exception as e:
+                        print(f"   ⚠️ Could not store {fn}: {e}")
+        elif valid_mode == "mistake":
+            corr_key = f"_card{idx}_corrected"
+            if corr_key in audios:
+                fn = f"grammar_{topic_slug}_c{idx}_corr.mp3"
+                try:
+                    invoke_anki("storeMediaFile", {
+                        "filename": fn,
+                        "data": base64.b64encode(audios[corr_key]).decode("ascii"),
+                    })
+                    card_filenames.append(fn)
+                except Exception as e:
+                    print(f"   ⚠️ Could not store {fn}: {e}")
+        else:
+            ans_key = f"_card{idx}_answer"
+            sent_key = f"_card{idx}_sentence"
+            if ans_key in audios:
+                fn = f"grammar_{topic_slug}_c{idx}_ans.mp3"
+                try:
+                    invoke_anki("storeMediaFile", {
+                        "filename": fn,
+                        "data": base64.b64encode(audios[ans_key]).decode("ascii"),
+                    })
+                    card_filenames.append(fn)
+                except Exception as e:
+                    print(f"   ⚠️ Could not store {fn}: {e}")
+            if sent_key in audios:
+                fn = f"grammar_{topic_slug}_c{idx}_sent.mp3"
+                try:
+                    invoke_anki("storeMediaFile", {
+                        "filename": fn,
+                        "data": base64.b64encode(audios[sent_key]).decode("ascii"),
+                    })
+                    card_filenames.append(fn)
+                except Exception as e:
+                    print(f"   ⚠️ Could not store {fn}: {e}")
+
+        card_audio_map[idx] = " ".join(f"[sound:{f}]" for f in card_filenames)
+
+    # Insert cards into Anki
+    added_count = 0
+    skipped_count = 0
+
+    for idx, card in enumerate(cards, start=1):
+        if valid_mode == "contrast":
+            label = card.get("pair_label") or f"Pair {idx}"
+            card_topic = f"{topic_name} — {label}"
+        elif valid_mode == "mistake":
+            corr = card.get("corrected_element") or f"Mistake #{idx}"
+            card_topic = f"{topic_name} — {corr}"
+        else:
+            target = str(card.get("target_form") or "").strip()
+            card_topic = f"{topic_name} — {target}"
+
+        front_html = str(card.get("front_html") or "").strip()
+        back_html = str(card.get("back_html") or "").strip()
+        audio_field = card_audio_map.get(idx, "")
+        metadata_fields = anki_metadata_fields(card, data, idx)
+
+        try:
+            invoke_anki("addNote", {
+                "note": {
+                    "deckName": GRAMMAR_DECK_NAME,
+                    "modelName": GRAMMAR_NOTE_TYPE,
+                    "fields": {
+                        "Topic": card_topic,
+                        "Front": front_html,
+                        "Back": back_html,
+                        "Audio": audio_field,
+                        "Level": level,
+                        **metadata_fields,
+                    },
+                    "tags": [
+                        "ag-grammar",
+                        f"ag-grammar-{valid_mode}",
+                        *(
+                            [f"ag-grammar-topic-{topic_key}"]
+                            if topic_key else []
+                        ),
+                    ],
+                    "options": {
+                        "allowDuplicate": False,
+                        "duplicateScope": "deck",
+                        "duplicateScopeOptions": {
+                            "deckName": GRAMMAR_DECK_NAME,
+                            "checkChildren": True,
+                        },
+                    },
+                },
+            })
+            added_count += 1
+        except Exception as error:
+            err_str = str(error).lower()
+            if "duplicate" in err_str:
+                skipped_count += 1
+            else:
+                print(f"   ❌ Card {idx}: {error}")
+
+    if added_count > 0:
+        print(_terminal_style(
+            f"\n   ✅ Successfully added {added_count} {valid_mode} cards to {GRAMMAR_DECK_NAME}"
+            + (f" ({skipped_count} duplicates skipped)" if skipped_count else ""),
+            "1", "32",
+        ))
+    elif skipped_count > 0:
+        print(f"\n   ⏭️  All {skipped_count} cards for '{topic_name}' already exist in Anki.")
+    return added_count
+
+
+
+def _run_grammar_cli(args):
+    """Handle the `anki grammar` subcommand across all modes."""
+    grammar_args = list(args.words[1:]) if len(args.words) > 1 else []
+
+    # Detect flags from args or positional words
+    clean_words = []
+    level_override = getattr(args, "level", None)
+    list_requested = getattr(args, "list", False)
+    all_requested = getattr(args, "all", False)
+    contrast_mode = getattr(args, "contrast", False)
+    mistake_mode = getattr(args, "mistakes", False)
+    contrast_list = getattr(args, "contrast_list", False)
+    mistakes_list = getattr(args, "mistakes_list", False)
+
+    idx = 0
+    while idx < len(grammar_args):
+        item = grammar_args[idx].strip()
+        item_lower = item.casefold()
+        if item_lower in ("--list", "list", "-l"):
+            list_requested = True
+        elif item_lower in ("--contrast-list", "contrast-list"):
+            contrast_list = True
+        elif item_lower in ("--mistakes-list", "mistakes-list", "--mistake-list", "mistake-list"):
+            mistakes_list = True
+        elif item_lower in ("--contrast", "contrast", "-c"):
+            contrast_mode = True
+        elif item_lower in ("--mistakes", "mistakes", "--mistake", "mistake", "-m"):
+            mistake_mode = True
+        elif item_lower in ("--all", "all"):
+            all_requested = True
+        elif item_lower in ("--level", "level"):
+            if idx + 1 < len(grammar_args):
+                level_override = grammar_args[idx + 1].strip().upper()
+                idx += 1
+        elif item.startswith("--level="):
+            level_override = item.split("=", 1)[1].strip().upper()
+        else:
+            clean_words.append(item)
+        idx += 1
+
+    # 1. Listing catalogs
+    if contrast_list or (contrast_mode and not clean_words and not all_requested and not level_override):
+        return _grammar_contrast_list_cli()
+
+    if mistakes_list or (mistake_mode and not clean_words and not all_requested and not level_override):
+        return _grammar_mistakes_list_cli()
+
+    if list_requested or (not clean_words and not all_requested and not level_override and not contrast_mode and not mistake_mode):
+        return _grammar_list_cli()
+
+    # Determine mode
+    mode = "standard"
+    if contrast_mode:
+        mode = "contrast"
+    elif mistake_mode:
+        mode = "mistake"
+
+    # 2. Batch level generation
+    if level_override:
+        level = level_override.upper()
+        if level not in ("A1", "A2", "B1"):
+            print("❌ Please specify a valid level: A1, A2, or B1")
+            print("   Example: anki grammar --level A1")
+            return 1
+        return _grammar_batch_cli(level=level, mode=mode)
+
+    # 3. All topics batch generation
+    if all_requested:
+        return _grammar_batch_cli(level=None, mode=mode)
+
+    # 4. Generate specific topic
+    topic = " ".join(clean_words).strip()
+    if not topic:
+        if mode == "contrast":
+            return _grammar_contrast_list_cli()
+        elif mode == "mistake":
+            return _grammar_mistakes_list_cli()
+        return _grammar_list_cli()
+
+    try:
+        _require_generation_keys()
+    except BackfillSafetyError as error:
+        print(f"❌ {error}")
+        return 1
+
+    success = add_grammar_to_anki(topic, mode=mode)
+    return 0 if success else 1
+
+
+def _grammar_list_cli():
+    """Print the standard grammar curriculum with completion status."""
+    print("\n" + _terminal_style("📐 Italian Grammar Practice Curriculum", "1"))
+    print("=" * 50)
+
+    all_topics = get_grammar_topics_by_mode("standard")
+    level_labels = {
+        "A1": ("🟢", "Beginner"),
+        "A2": ("🔵", "Elementary"),
+        "B1": ("🟣", "Intermediate"),
+    }
+
+    total = 0
+    done = 0
+
+    for level in ("A1", "A2", "B1"):
+        topics = all_topics.get(level, [])
+        if not topics:
+            continue
+        icon, label = level_labels[level]
+        print(f"\n{icon} {level} — {label}")
+        print("-" * 40)
+
+        for idx, topic in enumerate(topics, start=1):
+            total += 1
+            exists = False
+            try:
+                exists = check_grammar_duplicate(topic["title_it"])
+            except Exception:
+                pass
+            if exists:
+                done += 1
+                status = _terminal_style("✅", "32")
+            else:
+                status = "  "
+            print(f"  {status} {idx:2d}. {topic['title_it']}")
+            print(f"       {topic['title_en']}")
+
+    print(f"\n{'─' * 50}")
+    print(f"Total: {total} topics | Completed: {done} | Remaining: {total - done}")
+    print(f"\nUsage:")
+    print(f"  anki grammar \"pronomi indiretti\"         — Generate practice cards")
+    print(f"  anki grammar \"lo vs gli\" --contrast     — Generate contrast challenge cards")
+    print(f"  anki grammar \"auxiliary errors\" --mistakes — Generate spot-the-mistake cards")
+    print(f"  anki grammar --contrast-list            — List all contrast challenge pairs")
+    print(f"  anki grammar --mistakes-list            — List all error hunter topics")
+    return 0
+
+
+def _grammar_contrast_list_cli():
+    """Print the catalog of built-in contrast challenge topics."""
+    print("\n" + _terminal_style("⚖️ Contrast Challenges (Minimal Pairs / The Confusers)", "1", "35"))
+    print("=" * 55)
+
+    all_topics = get_grammar_topics_by_mode("contrast")
+    for level in ("A1", "A2", "B1"):
+        topics = all_topics.get(level, [])
+        if not topics:
+            continue
+        print(f"\n🏷️ Level {level}")
+        print("-" * 40)
+        for idx, topic in enumerate(topics, start=1):
+            print(f"  {idx}. {_terminal_style(topic['title_it'], '1')}")
+            print(f"     {topic['title_en']}")
+            print(f"     💡 Focus: {topic['prompt_hint']}")
+
+    print(f"\n{'─' * 55}")
+    print("Usage:")
+    print("  anki grammar \"lo vs gli\" --contrast")
+    print("  anki grammar \"essere vs avere\" --contrast")
+    return 0
+
+
+def _grammar_mistakes_list_cli():
+    """Print the catalog of built-in error hunter topics."""
+    print("\n" + _terminal_style("🔍 Spot & Fix the Mistake (Trova l'Errore)", "1", "33"))
+    print("=" * 55)
+
+    all_topics = get_grammar_topics_by_mode("mistake")
+    for level in ("A1", "A2", "B1"):
+        topics = all_topics.get(level, [])
+        if not topics:
+            continue
+        print(f"\n🏷️ Level {level}")
+        print("-" * 40)
+        for idx, topic in enumerate(topics, start=1):
+            print(f"  {idx}. {_terminal_style(topic['title_it'], '1')}")
+            print(f"     {topic['title_en']}")
+            print(f"     💡 Focus: {topic['prompt_hint']}")
+
+    print(f"\n{'─' * 55}")
+    print("Usage:")
+    print("  anki grammar \"auxiliary errors\" --mistakes")
+    print("  anki grammar \"gender trap errors\" --mistakes")
+    return 0
+
+
+def _grammar_batch_cli(level=None, mode="standard"):
+    """Generate grammar cards for a level or the entire curriculum across modes."""
+    try:
+        _require_generation_keys()
+    except BackfillSafetyError as error:
+        print(f"❌ {error}")
+        return 1
+
+    all_topics = get_grammar_topics_by_mode(mode, level)
+    targets = []
+    for lvl in ("A1", "A2", "B1"):
+        for topic in all_topics.get(lvl, []):
+            targets.append(topic)
+
+    if not targets:
+        print("No topics found for the specified level and mode.")
+        return 1
+
+    label = f"level {level}" if level else "full catalog"
+    print(f"\n📐 Generating grammar cards ({mode} mode, {label}, {len(targets)} topics)…\n")
+
+    added = 0
+    skipped = 0
+    failed = 0
+
+    for topic in targets:
+        try:
+            count = add_grammar_to_anki(topic["title_it"], mode=mode)
+            if count > 0:
+                added += count
+            else:
+                skipped += 1
+        except KeyboardInterrupt:
+            print(
+                f"\n\nCancelled — generated {added} cards."
+            )
+            return 130
+        except Exception as error:
+            print(f"   ❌ {error}")
+            failed += 1
+        print("-" * 40)
+
+    status_color = "32" if failed == 0 else "33"
+    print(_terminal_style(
+        f"\n📐 Done — Added: {added} cards | Skipped: {skipped} topics | "
+        f"Failed: {failed} | Total topics: {len(targets)}",
+        "1", status_color,
+    ))
+    return 0 if failed == 0 else 1
+
+
+
 def main():
+
     parser = build_parser()
     args = parser.parse_args()
     migration_selected = _validate_operation_args(parser, args)
@@ -2800,6 +3541,12 @@ def main():
         and str(args.words[0]).strip().casefold() == "teach"
     ):
         return _run_teacher_cli(args)
+
+    if (
+        len(args.words) >= 1
+        and str(args.words[0]).strip().casefold() == "grammar"
+    ):
+        return _run_grammar_cli(args)
 
     words_to_add = list(args.words)
 

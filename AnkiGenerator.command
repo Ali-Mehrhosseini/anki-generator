@@ -31,16 +31,32 @@ fi
 
 source venv/bin/activate
 
-# ── Check if port 5001 is already in use ─────────────────────
-if lsof -i :5001 -sTCP:LISTEN >/dev/null 2>&1; then
-    echo "  ✅  Anki Generator is already running!"
-    echo ""
-    echo "  Opening browser…"
-    open "http://localhost:5001"
-    echo ""
-    echo "  Press any key to close this window…"
-    read -n 1 -s
-    exit 0
+# ── Choose this project's server, not an older copy ──────────
+APP_PORT=5001
+if lsof -i :$APP_PORT -sTCP:LISTEN >/dev/null 2>&1; then
+    if curl -fsS "http://127.0.0.1:$APP_PORT/speaking" 2>/dev/null \
+        | grep -q "Voice-Only Speaking Sprint"; then
+        echo "  ✅  Anki Generator is already running!"
+        echo ""
+        echo "  Opening browser…"
+        open "http://localhost:$APP_PORT"
+        echo ""
+        echo "  Press any key to close this window…"
+        read -n 1 -s
+        exit 0
+    fi
+
+    echo "  ⚠️   Port $APP_PORT belongs to another or older app copy."
+    while lsof -i :$APP_PORT -sTCP:LISTEN >/dev/null 2>&1; do
+        APP_PORT=$((APP_PORT + 1))
+        if [ "$APP_PORT" -gt 5010 ]; then
+            echo "  ❌  Could not find a free local port from 5001 to 5010."
+            echo ""
+            echo "  Press any key to close…"
+            read -n 1 -s
+            exit 1
+        fi
+    done
 fi
 
 # ── Check if Anki Desktop is running ─────────────────────────
@@ -52,14 +68,14 @@ if ! pgrep -x "Anki" >/dev/null 2>&1; then
 fi
 
 # ── Start the Flask server ───────────────────────────────────
-echo "  🚀  Starting server on http://localhost:5001"
+echo "  🚀  Starting server on http://localhost:$APP_PORT"
 echo ""
 
 # Open browser after a short delay (server needs a moment to boot)
-(sleep 2 && open "http://localhost:5001") &
+(sleep 2 && open "http://localhost:$APP_PORT") &
 
 # Run the server — this blocks until you close the terminal window
-python3 app.py 2>&1
+ANKI_GENERATOR_PORT="$APP_PORT" python3 app.py 2>&1
 
 # ── Cleanup on exit ──────────────────────────────────────────
 echo ""

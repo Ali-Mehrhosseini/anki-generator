@@ -59,7 +59,8 @@
         <div class="aurora-orb orb-2"></div>
         <div class="aurora-orb orb-3"></div>
     </div>
-    <div class="top-right-nav"><a href="/speaking" class="settings-corner-btn" style="text-decoration:none;">🗣️ Speaking Lab</a>
+    <div class="top-right-nav"><a href="/grammar" class="settings-corner-btn" style="text-decoration:none;">📐 Grammar</a>
+        <a href="/speaking" class="settings-corner-btn" style="text-decoration:none;">🗣️ Speaking Lab</a>
         <button id="themeToggleBtn" class="settings-corner-btn" style="padding: 12px; min-width: auto;" title="Toggle Dark/Light Mode">🌓</button>
         <a href="/settings" class="settings-corner-btn" style="text-decoration: none;" title="Anki Settings">⚙️ Settings</a>
     </div>
@@ -130,6 +131,15 @@
                     <div class="side-label">Back</div>
                     <div class="html-content" id="backHtml"></div>
                     <div class="audio-controls" id="backAudioControls"></div>
+                    <div id="pretestGate" class="pretest-gate hidden">
+                        <div class="pretest-eyebrow">Guess before you learn</div>
+                        <p>Trying first — even wrongly — makes the real answer stick.</p>
+                        <input type="text" id="pretestGuess" placeholder="What does this mean?" autocomplete="off">
+                        <div class="pretest-actions">
+                            <button type="button" id="pretestSubmit">Lock in my guess</button>
+                            <button type="button" id="pretestSkip">Skip</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <details class="production-preview-details hidden" id="productionPreview">
@@ -149,7 +159,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script src="app.js?v=11"></script>
+    <script src="app.js?v=13"></script>
     <script>
         const themeToggleBtn = document.getElementById('themeToggleBtn');
         if (themeToggleBtn) {
