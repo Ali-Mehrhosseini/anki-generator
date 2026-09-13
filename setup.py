@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="anki-generator",
     version="1.0.0",
-    py_modules=["cli", "main", "practice_mode", "production_backfill"],
+    py_modules=["cli", "main", "practice_mode", "production_backfill", "deck_stats"],
     install_requires=[
         "requests",
         "python-dotenv",

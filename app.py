@@ -66,6 +66,7 @@ from grammar_practice import (
     session_transfer_context,
 )
 from error_insights import collect_errors, recommend_topics
+from anki_graduation import graduation_plan, my_sentence_counts, run_graduation
 
 PROJECT_DIR = Path(__file__).resolve().parent
 load_dotenv(PROJECT_DIR / '.env')
@@ -516,7 +517,35 @@ def grammar_practice_overview():
         ensure_grammar_model_and_deck()
         backfill_legacy_metadata(invoke_anki, _resolve_grammar_topic)
         result = practice_overview(
-            invoke_anki, PROJECT_DIR
+            invoke_anki, PROJECT_DIR,
+            word_deck=os.getenv('DECK_NAME') or 'Italian',
+        )
+        return jsonify(result), 200
+    except Exception as error:
+        return jsonify({'error': str(error)}), 400
+
+
+@app.route('/api/anki/graduation', methods=['GET'])
+def anki_graduation_preview():
+    """Preview which production cards graduation would suspend or release."""
+    try:
+        return jsonify(graduation_plan(
+            invoke_anki,
+            os.getenv('DECK_NAME') or 'Italian',
+        )), 200
+    except Exception as error:
+        return jsonify({'error': str(error)}), 400
+
+
+@app.route('/api/anki/graduation/run', methods=['POST'])
+def anki_graduation_run():
+    """Apply graduation: young production cards suspended, mature released."""
+    try:
+        data = request.json or {}
+        result = run_graduation(
+            invoke_anki,
+            os.getenv('DECK_NAME') or 'Italian',
+            apply=bool(data.get('apply')),
         )
         return jsonify(result), 200
     except Exception as error:

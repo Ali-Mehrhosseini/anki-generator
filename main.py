@@ -151,7 +151,11 @@ _STRESS_SPAN_PATTERN = re.compile(
 
 def _visible_front_text(value: str) -> str:
     """Return normalized visible text from the small Front fragment."""
-    without_tags = re.sub(r"<[^>]+>", "", str(value or ""))
+    separated = re.sub(
+        r"</(?:div|p|li|tr|h[1-6])\s*>|<br\b[^>]*>",
+        " ", str(value or ""), flags=re.IGNORECASE,
+    )
+    without_tags = re.sub(r"<[^>]+>", "", separated)
     return " ".join(html.unescape(without_tags).split())
 
 
@@ -217,6 +221,35 @@ def _repair_syllabified_front(data: dict, word: str) -> str:
         data["front_html"] = repaired
         return repaired
     return front_html
+
+
+def _repair_combined_front_stress(data: dict, word: str) -> str:
+    """Repair combined pronunciation decoration only if spelling is restored."""
+    original = str(data.get("front_html") or "")
+    spans = list(_STRESS_SPAN_PATTERN.finditer(original))
+    if len(spans) != 1:
+        return original
+    match = spans[0]
+    marked = match.group("value")
+    # Keep markup and entities intact; this fallback handles plain syllables.
+    if "<" in marked or "&" in marked:
+        return original
+    marked = "".join(
+        _plain_stress_vowel(char) or char for char in marked
+    )
+    candidate = original[:match.start("value")] + marked + original[match.end("value"):]
+    candidate = "".join(
+        chunk if chunk.startswith("<") else re.sub(r"[-‐‑‒–—·•]", "", chunk)
+        for chunk in re.split(r"(<[^>]+>)", candidate)
+    )
+    normalized_word = unicodedata.normalize("NFKC", word).casefold()
+    normalized_candidate = unicodedata.normalize(
+        "NFKC", _visible_front_text(candidate)
+    ).casefold()
+    if normalized_word in normalized_candidate:
+        data["front_html"] = candidate
+        return candidate
+    return original
 
 
 def _stress_hint_vowel(data: dict) -> str:
@@ -321,6 +354,51 @@ def _repair_shifted_front_stress(data: dict, word: str) -> str:
     return front_html
 
 
+def _repair_dropped_front_consonant(data: dict, word: str) -> str:
+    """Restore one consonant beside stress when both Back and TTS agree."""
+    front = str(data.get("front_html") or "")
+    spans = list(_STRESS_SPAN_PATTERN.finditer(front))
+    if len(spans) != 1 or str(data.get("tts_word") or "").casefold() != word.casefold():
+        return front
+    hint = re.search(
+        r"Stress:\s*([A-Za-zÀ-ÖØ-öø-ÿ-]+)",
+        _visible_front_text(data.get("back_html") or ""),
+    )
+    if not hint:
+        return front
+    spelling = hint.group(1).replace("-", "")
+    stressed = [i for i, char in enumerate(spelling)
+                if char.isupper() and _plain_stress_vowel(char)]
+    if spelling.casefold() != word.casefold() or len(stressed) != 1:
+        return front
+    stress_index = stressed[0]
+    span = spans[0]
+    if span.group("value").casefold() != word[stress_index].casefold():
+        return front
+    before = re.search(r"[^<>\s]*$", front[:span.start()])
+    after = re.match(r"[^<>\s]*", front[span.end():])
+    left, right = before.group(), after.group()
+    visible = left + span.group("value") + right
+    # Only a single missing consonant immediately beside the stress is safe.
+    candidates = [i for i in (stress_index - 1, stress_index + 1)
+                  if 0 <= i < len(word) and word[i].isalpha()
+                  and not _plain_stress_vowel(word[i])
+                  and (word[:i] + word[i + 1:]).casefold() == visible.casefold()
+                  and len(left) == stress_index - (i < stress_index)]
+    if len(candidates) != 1:
+        return front
+    repaired_word = (
+        html.escape(word[:stress_index])
+        + front[span.start():span.start("value")]
+        + html.escape(word[stress_index])
+        + front[span.end("value"):span.end()]
+        + html.escape(word[stress_index + 1:])
+    )
+    repaired = front[:before.start()] + repaired_word + front[span.end() + len(right):]
+    data["front_html"] = repaired
+    return repaired
+
+
 def validate_recognition_front(data: dict, language: str) -> dict:
     """Fail closed when Gemini changes the lemma or marks invalid stress."""
     if data.get("error") or data.get("needs_disambiguation"):
@@ -339,6 +417,8 @@ def validate_recognition_front(data: dict, language: str) -> dict:
     if normalized_word not in normalized_visible:
         front_html = _repair_artificial_front_stress(data, word)
         front_html = _repair_syllabified_front(data, word)
+        front_html = _repair_combined_front_stress(data, word)
+        front_html = _repair_dropped_front_consonant(data, word)
         visible = _visible_front_text(front_html)
         normalized_visible = unicodedata.normalize(
             "NFKC", visible
@@ -1457,6 +1537,43 @@ def _defer_first_exposure_grammar(feedback: dict) -> dict:
     return feedback
 
 
+def _reconcile_target_results(feedback: dict, transcript: str) -> bool:
+    """Fix per-target verdicts that contradict the visible transcript.
+
+    Gemini grades the audio, and occasionally transcribes a target word
+    correctly while still judging that target "not used" — exactly what a
+    learner will screenshot and question. The transcript is what the learner
+    sees and hears themselves say, so it wins the contradiction.
+    """
+    changed = False
+    transcript_lower = f" {str(transcript or '').casefold()} "
+    if not transcript_lower.strip():
+        return False
+    for result in feedback.get("target_results") or []:
+        word = str(result.get("word") or "").strip().casefold()
+        if not word:
+            continue
+        present = re.search(rf"(?<!\w){re.escape(word)}(?!\w)", transcript_lower)
+        if present and not result.get("used"):
+            result["used"] = True
+            result["correct"] = True
+            result["error_type"] = "none"
+            display_word = str(result.get("word") or word)
+            result["feedback_en"] = (
+                f"'{display_word}' was heard in your recording — nicely placed."
+            )
+            result["feedback_fa"] = (
+                f"«{display_word}» در ضبط شما شنیده شد — جایگذاری خوبی بود."
+            )
+            changed = True
+    if changed:
+        results = feedback.get("target_results") or []
+        if results and all(bool(item.get("correct")) for item in results):
+            feedback["retry_needed"] = False
+            feedback["focus"] = {"category": "none"}
+    return changed
+
+
 def generate_practice_feedback(
     targets: list[dict],
     task: dict,
@@ -1502,6 +1619,13 @@ preferences as errors. Choose only the single most important error_type for
 each target. Use `none` only when correct. If a target is absent, use
 `not_used`. Keep each English and Persian feedback line concise and
 semantically parallel.
+
+SELF-CONSISTENCY: judge each target against the learner's text itself. If the
+target word (or its inflection) literally appears in the learner response,
+then it WAS used — never report a target as missing while it is visible in
+the text you are grading. Italian also drops subject pronouns naturally
+(io, tu): a conjugated verb alone is a grammatically complete sentence, so
+never mark a response incomplete merely for omitting `io` or `tu`.
 
 Preserve the learner's intended message in corrected_response_it; make the
 smallest necessary corrections rather than replacing it with unrelated prose.
@@ -1610,6 +1734,7 @@ new pattern is present, set detected=false and use empty strings for its text.
     if set(by_identity) != set(identities):
         raise ValueError("Gemini omitted a practice target.")
     feedback["target_results"] = [by_identity[item] for item in identities]
+    _reconcile_target_results(feedback, learner_response)
     _defer_first_exposure_grammar(feedback)
     feedback["evaluation_reliable"] = True
     feedback["_gemini_model"] = gemini_model
@@ -1749,6 +1874,13 @@ def generate_practice_audio_feedback(
         "set transcription_uncertain=true. If there is no intelligible "
         "Italian speech, return an empty transcript_it, set "
         "transcription_uncertain=true, and judge the response as incomplete. "
+        "TARGET CONSISTENCY: judge every target against what is actually "
+        "audible AND against your own transcript_it — if a target word is in "
+        "transcript_it, then it WAS used; never report a target as missing "
+        "while transcribing it. Italian drops subject pronouns naturally "
+        "(io, tu): a conjugated verb alone is grammatically complete, so do "
+        "not mark a response incomplete merely for omitting a subject "
+        "pronoun. "
         "LIKELY_VOCABULARY lists words the learner has been studying. Use it "
         "ONLY to pick the correct spelling or word among similar-sounding "
         "candidates for something actually audible (spengo vs spennio, 'di "
@@ -1842,6 +1974,10 @@ def generate_practice_audio_feedback(
             "coaching_tip_fa": "",
         })
         feedback["pronunciation"] = pronunciation
+    # The transcript is what the learner sees — a target transcribed into it
+    # can never be reported as "not used" (Gemini's audio grading sometimes
+    # contradicts its own transcription).
+    _reconcile_target_results(feedback, feedback.get("transcript_it") or "")
     feedback["_gemini_model"] = gemini_model
     return feedback
 

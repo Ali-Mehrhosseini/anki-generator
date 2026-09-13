@@ -2049,6 +2049,9 @@ def _run_practice_cli(args):
     print("\nPractice complete. The original cards and review history were unchanged.")
     return 0
 
+from deck_stats import print_deck_stats
+
+
 def build_parser():
     parser = argparse.ArgumentParser(
         description="Add words to Anki or learn from copied Italian text.",
@@ -2060,8 +2063,10 @@ def build_parser():
     parser.add_argument(
         "words",
         nargs="*",
-        help="Words to add, or the special commands `teach` and `practice`",
+        help="Words to add, or the special commands `teach`, `practice`, and `stats`",
     )
+    parser.add_argument("--stats", action="store_true", help="Show read-only deck statistics")
+    parser.add_argument("--deck", help="Deck for stats (defaults to DECK_NAME)")
     parser.add_argument("-f", "--file", help="File containing a list of words, one per line")
     parser.add_argument(
         "-c",
@@ -2778,6 +2783,11 @@ def _validate_operation_args(parser, args):
         or args.install_recall_sort_helper
         or args.upgrade_production_audio
     )
+    stats_selected = args.stats or args.words == ['stats']
+    if stats_selected and (args.file or args.context or migration_selected or (args.words and args.words != ['stats'])):
+        parser.error('Use anki stats [--deck NAME] by itself.')
+    if args.deck is not None and not stats_selected:
+        parser.error('--deck is only supported with stats.')
     teacher_selected = bool(
         args.words
         and str(args.words[0]).strip().casefold() == "teach"
@@ -3529,6 +3539,14 @@ def main():
 
     if migration_selected:
         return 0
+
+    if args.stats or args.words == ['stats']:
+        try:
+            print_deck_stats(invoke_anki, args.deck if args.deck is not None else DECK_NAME)
+            return 0
+        except Exception as error:
+            print(f"Could not load deck statistics. Keep Anki open with AnkiConnect enabled. {error}")
+            return 1
 
     if (
         len(args.words) == 1

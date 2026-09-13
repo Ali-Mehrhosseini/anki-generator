@@ -98,6 +98,11 @@
     const dictoglossResult = document.getElementById('dictoglossResult');
     const dictoglossRetryBtn = document.getElementById('dictoglossRetryBtn');
     let dictoglossSessionId = null;
+    // Card graduation (recognition → production when mature)
+    const graduationStats = document.getElementById('graduationStats');
+    const graduationDetail = document.getElementById('graduationDetail');
+    const graduationRunBtn = document.getElementById('graduationRunBtn');
+    let graduationPlanData = null;
 
     // --- API Keys (from localStorage, same as main app) ---
     function getApiKeys() {
@@ -1170,6 +1175,72 @@
         }
     }
 
+    // --- Card graduation ---
+
+    function renderMySentenceNudge(data) {
+        const nudge = data.my_sentence;
+        if (!nudge || !nudge.notes) return;
+        const item = document.createElement('div');
+        item.className = 'grammar-insight-item';
+        item.innerHTML = `<div><strong>Personal sentences</strong><small>${nudge.personalized} of ${nudge.notes} cards have your own sentence — fill the ✏️ box when you review</small></div><span class="grammar-insight-score">${nudge.personalized}/${nudge.notes}</span>`;
+        graduationDetail.appendChild(item);
+    }
+
+    async function loadGraduation() {
+        if (!graduationStats) return;
+        try {
+            const [gradResponse, overviewResponse] = await Promise.all([
+                fetch('/api/anki/graduation'),
+                fetch('/api/grammar/practice/overview'),
+            ]);
+            graduationPlanData = await gradResponse.json();
+            if (!gradResponse.ok) throw new Error(graduationPlanData.error || 'Could not load graduation data.');
+            const plan = graduationPlanData;
+            graduationStats.innerHTML =
+                `<span><strong>${plan.production_cards || 0}</strong> production cards</span>` +
+                `<span><strong>${plan.mature || 0}</strong> ready for production</span>` +
+                `<span><strong>${plan.immature || 0}</strong> still recognition-only</span>`;
+            graduationDetail.innerHTML = '';
+            const changes = (plan.to_release || []).length + (plan.to_suspend || []).length;
+            if (plan.to_release?.length) {
+                graduationDetail.insertAdjacentHTML('beforeend',
+                    `<div class="grammar-insight-item"><div><strong>Release ${plan.to_release.length} production card${plan.to_release.length > 1 ? 's' : ''}</strong><small>Anki shows the recognition card is maturing</small></div><span class="grammar-insight-score">▶</span></div>`);
+            }
+            if (plan.to_suspend?.length) {
+                graduationDetail.insertAdjacentHTML('beforeend',
+                    `<div class="grammar-insight-item"><div><strong>Hold back ${plan.to_suspend.length} production card${plan.to_suspend.length > 1 ? 's' : ''}</strong><small>Recognition needs ${plan.graduation_min_reps || 3} reviews first</small></div><span class="grammar-insight-score">⏸</span></div>`);
+            }
+            if (!changes) {
+                graduationDetail.insertAdjacentHTML('beforeend',
+                    '<div class="grammar-insight-item"><div><strong>Everything is in its right stage</strong><small>No graduation changes needed right now</small></div><span class="grammar-insight-score">✓</span></div>');
+            }
+            graduationRunBtn.classList.toggle('hidden', !changes);
+            graduationRunBtn.textContent = `Apply ${changes} graduation change${changes > 1 ? 's' : ''}`;
+            if (overviewResponse.ok) renderMySentenceNudge(await overviewResponse.json());
+        } catch (error) {
+            graduationStats.innerHTML = `<span>${escapeHtml(error.message)}</span>`;
+        }
+    }
+
+    async function runGraduation() {
+        if (!graduationPlanData || graduationRunBtn.disabled) return;
+        graduationRunBtn.disabled = true;
+        try {
+            const response = await fetch('/api/anki/graduation/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ apply: true }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Could not apply graduation.');
+            loadGraduation();
+        } catch (error) {
+            graduationStats.innerHTML = `<span>${escapeHtml(error.message)}</span>`;
+        } finally {
+            graduationRunBtn.disabled = false;
+        }
+    }
+
     // --- Event Listeners ---
     grammarForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -1192,6 +1263,7 @@
     transferSubmitBtn?.addEventListener('click', checkTransferResponse);
     dictoglossForm?.addEventListener('submit', startDictogloss);
     dictoglossCheckBtn?.addEventListener('click', checkDictogloss);
+    graduationRunBtn?.addEventListener('click', runGraduation);
     dictoglossRetryBtn?.addEventListener('click', () => {
         dictoglossResult.classList.add('hidden');
         dictoglossRetryBtn.classList.add('hidden');
@@ -1237,4 +1309,5 @@
     loadPracticeOverview();
     loadTopics();
     loadCrossTrainingErrors();
+    loadGraduation();
 })();

@@ -17,6 +17,8 @@ Instead of manually searching for translations, conjugations, and downloading au
   - A clear note when a related part of speech has no natural common form.
   - One or two common collocations and a compact part-of-speech-specific Italian grammar summary.
 - **Active Recall**: Optionally creates a second card from the same Anki note, with a meaning cue and sentence gap on the Front and the Italian answer on the Back.
+- **Card graduation — recognition first, production when ready**: research on retrieval formats shows production cards stick better but cost about twice the review time, so the evidence-backed sequence is recognition first. The Grammar Deck's Today panel ("Cards that grow up") holds back each new word's production card until Anki's own review data shows the recognition card is maturing (3+ reviews), then releases it. Anki/FSRS scheduling is never modified — graduation only toggles the app-owned production cards' suspension state, with a read-only preview before applying.
+- **Personal-ownership nudge**: the Today panel also counts how many of your cards still carry the untouched "✏️ My sentence" placeholder, because learner-edited cards are retained better than read-only AI cards.
 - **Card learning boosters**: every new card carries an **emoji pictogram** for dual coding of concrete senses and a **spoken-frequency chip** (📊 top 500/1000/3000) so you always know whether a word deserves priority. Each Back also ends with a static **"✏️ My sentence"** box: edit the note in Anki and replace it with a sentence from your own life — self-generated examples are retained far better than read ones. (Keyword-method mnemonics are available on demand in the Speaking Lab's word-help 🧠 button rather than on the card.)
 - **Native Audio**: Generates the target-language word, example, conjugations, related forms, and related examples with **AWS Polly**, plus the English Back meaning with the US-English Tiffany generative voice.
 - **Focused Playback**: On answer reveal, automatically plays only the main word for non-verbs or the conjugations for verbs; English meanings, examples, and Word Family clips are click-to-play.
@@ -414,3 +416,24 @@ migrations; use `--undo-production-backfill RUN_ID` for them.
 If you want to change how the flashcard is formatted or request specific grammar rules, you can directly edit the AI instructions. 
 
 Go to **Settings** -> Scroll down to **AI Prompt (Advanced)**. You can freely edit the system prompt sent to Gemini. If you ever break it, simply click "Reset to Default".
+
+### Deck statistics
+
+Run `anki stats` (or `anki --stats`) to see your configured deck's vocabulary
+and study counts. Use `anki stats --deck "Italian"` to inspect another deck.
+Keep Anki Desktop open with AnkiConnect enabled; no AI or audio keys are needed.
+
+The generator home page also has a **Deck overview** for the deck selected in
+Settings. It refreshes after adding a word, when returning to the page, or with
+**Refresh**. It connects to Anki on your computer, including when the generator
+website is hosted remotely.
+
+The overview includes unique vocabulary entries, notes, cards, due now,
+new, learning/relearning, review, mature (21+ day interval), suspended, buried,
+and cards added in the last seven days. All counts include subdecks.
+Vocabulary is counted from distinct non-empty `Word` fields, ignoring case,
+HTML formatting, and extra whitespace. A phrase counts as one entry;
+recognition and production cards for the same word do not inflate this count.
+Notes without a `Word` field contribute to note/card totals only. Categories
+overlap: mature cards are review cards, and suspended cards may also be new or
+review. Saved vocabulary is not a measurement of how many words you know.

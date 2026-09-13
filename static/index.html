@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Italian Anki Generator</title>
-    <link rel="stylesheet" href="styles.css?v=18">
+    <link rel="stylesheet" href="styles.css?v=26">
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="icon" type="image/png" href="/favicon.png">
     <script>
@@ -93,6 +93,13 @@
         
 
 
+        <section class="minimal-panel deck-stats" aria-labelledby="deckStatsTitle">
+            <div class="deck-stats-heading"><h2 id="deckStatsTitle">Deck overview</h2>
+                <button type="button" id="refreshDeckStats">Refresh</button></div>
+            <p id="deckStatsStatus" role="status">Loading deck statistics…</p>
+            <dl id="deckStatsGrid" class="deck-stats-grid"></dl>
+            <p class="deck-stats-note">Vocabulary counts distinct non-empty Word fields, ignoring case and formatting. Phrases count as one entry. Includes subdecks. Card categories overlap; mature means a 21+ day interval, not proven mastery.</p>
+        </section>
         <div class="input-section minimal-panel">
             <form id="wordForm">
                 <input type="text" id="wordInput" placeholder="Enter an Italian word or English phrase..." required autocomplete="off">
@@ -159,7 +166,8 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script src="app.js?v=13"></script>
+    <script src="app.js?v=14"></script>
+    <script src="deck-stats.js?v=1"></script>
     <script>
         const themeToggleBtn = document.getElementById('themeToggleBtn');
         if (themeToggleBtn) {

@@ -39,6 +39,63 @@ class FrontValidationTests(unittest.TestCase):
         self.assertIn(">o</span>re", data["front_html"])
         self.assertNotIn("ó", data["front_html"])
 
+    def test_repairs_combined_ancora_pronunciation_decoration(self):
+        for before, marked, after, hint in [
+            ("an-", "cò", "-ra", "an-CO-ra"),
+            ("an-", "ò", "", "an-O"),
+            ("an-c", "ò", "-ra", "an-CO-ra"),
+            ("", "àn", "-co-ra", "AN-co-ra"),
+            ("an", "cò", "ra", "an-CO-ra"),
+        ]:
+            with self.subTest(marked=marked, before=before, after=after):
+                data = {
+                    "word": "ancora",
+                    "front_html": (
+                        f'<div>{before}<span style="border-bottom:2px dotted '
+                        f'currentColor;padding-bottom:2px;">{marked}</span>{after}</div>'
+                    ),
+                    "back_html": f"<div>Stress: {hint}</div>",
+                }
+                if not after:
+                    original = data["front_html"]
+                    with self.assertRaises(FrontCardValidationError):
+                        validate_recognition_front(data, "Italian")
+                    self.assertEqual(data["front_html"], original)
+                else:
+                    self.assertIs(validate_recognition_front(data, "Italian"), data)
+                    self.assertNotIn("ò", data["front_html"])
+                    self.assertNotIn("à", data["front_html"])
+                    self.assertRegex(data["front_html"], r'>[ao]</span>')
+
+    def test_repairs_live_ancora_response_with_missing_consonant(self):
+        data = {
+            "word": "ancora", "tts_word": "ancora",
+            "front_html": '<div>an<span style="border-bottom:2px dotted currentColor;">o</span>ra</div>',
+            "back_html": "<div>Stress: an-CO-ra</div><div>Voglio ancora un caffè.</div>",
+        }
+        self.assertIs(validate_recognition_front(data, "Italian"), data)
+        self.assertEqual(data["front_html"], '<div>anc<span style="border-bottom:2px dotted currentColor;">o</span>ra</div>')
+
+    def test_missing_consonant_repair_requires_agreement(self):
+        for changes in [
+            {"tts_word": "anora"}, {"tts_word": ""},
+            {"back_html": "Stress: AN-co-ra"},
+            {"back_html": "Stress: an-O-ra"},
+            {"back_html": ""},
+            {"front_html": '<div>a<span style="border-bottom:2px dotted currentColor;">o</span>ra</div>'},
+        ]:
+            with self.subTest(changes=changes):
+                data = {
+                    "word": "ancora", "tts_word": "ancora",
+                    "front_html": '<div>an<span style="border-bottom:2px dotted currentColor;">o</span>ra</div>',
+                    "back_html": "Stress: an-CO-ra",
+                    **changes,
+                }
+                original = data["front_html"]
+                with self.assertRaises(FrontCardValidationError):
+                    validate_recognition_front(data, "Italian")
+                self.assertEqual(data["front_html"], original)
+
     def test_does_not_repair_real_accent_in_canonical_word(self):
         data = {
             "word": "città",

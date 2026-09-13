@@ -1217,7 +1217,7 @@ def session_summary(workspace: Path, session_id: str) -> dict:
     }
 
 
-def practice_overview(invoke_anki, workspace: Path) -> dict:
+def practice_overview(invoke_anki, workspace: Path, word_deck: str | None = None) -> dict:
     """Build the Today dashboard without changing Anki scheduling."""
     state = load_state(workspace)
     items = discover_practice_items(invoke_anki)
@@ -1259,6 +1259,16 @@ def practice_overview(invoke_anki, workspace: Path) -> dict:
         "delayed_due": due_tasks,
         "scheduler_note": "Anki/FSRS remains the long-term scheduling authority.",
     }
+    if word_deck:
+        # Generation-effect nudge: notes the learner personally edited with
+        # their own sentence are retained better than read-only AI cards.
+        try:
+            from anki_graduation import my_sentence_counts
+
+            result["my_sentence"] = my_sentence_counts(invoke_anki, word_deck)
+        except Exception:
+            result["my_sentence"] = None
+    return result
 
 
 def mastery_by_topic(invoke_anki, workspace: Path) -> dict:

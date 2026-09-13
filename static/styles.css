@@ -42,7 +42,7 @@
 @media (max-width:620px) { .grammar-adaptive-panel { padding:16px; } .grammar-adaptive-header { flex-direction:column; gap:3px; } }
 
 /* Grammar Practice V2 workspace */
-.grammar-workspace-nav { position:sticky; top:14px; z-index:20; display:flex; width:max-content; max-width:100%; gap:5px; margin:10px auto 22px; padding:5px; border:1px solid var(--border-color); border-radius:14px; background:rgba(13,13,16,.88); box-shadow:var(--shadow-sm); backdrop-filter:blur(18px); }
+.grammar-workspace-nav { position:relative; top:auto; z-index:5; display:flex; width:max-content; max-width:100%; gap:5px; margin:10px auto 22px; padding:5px; border:1px solid var(--border-color); border-radius:14px; background:rgba(13,13,16,.88); box-shadow:var(--shadow-sm); backdrop-filter:blur(18px); }
 :root.light-mode .grammar-workspace-nav { background:rgba(255,255,255,.9); }
 .grammar-workspace-tab { min-width:0; border:0; border-radius:10px; padding:10px 17px; color:var(--text-secondary); background:transparent; font:inherit; font-size:.86rem; font-weight:700; white-space:nowrap; cursor:pointer; }
 .grammar-workspace-tab.active { color:#fff; background:linear-gradient(135deg,#8062c4,#4f7fd9); box-shadow:0 4px 16px rgba(94,77,175,.28); }
@@ -2830,3 +2830,40 @@ button.speaking-word-check { flex:0 0 auto; width:auto; margin:0; padding:10px 1
 .grammar-dictogloss-tip { margin:0 0 10px; font-size:.8rem; opacity:.65; }
 
 .speaking-record-hint.error { color:#ff8d8d; }
+
+/* Light mode: keep themed action buttons vivid. The generic
+   :root.light-mode button rule otherwise washes every gradient to gray. */
+:root.light-mode .grammar-adaptive-start,
+:root.light-mode .grammar-adaptive-submit,
+:root.light-mode .grammar-adaptive-next,
+:root.light-mode .grammar-dictogloss-btn,
+:root.light-mode .speaking-primary,
+:root.light-mode .speaking-secondary {
+    background: linear-gradient(135deg,#8d6bd7,#5a8dee);
+    color: #fff;
+    border: 1px solid transparent;
+}
+:root.light-mode .grammar-adaptive-next { background: linear-gradient(135deg,#2b9d5b,#4caf76); }
+:root.light-mode .grammar-repair-btn { background: linear-gradient(135deg,#c25b3a,#e08c3a); color:#fff; border-color: transparent; }
+:root.light-mode .speaking-record { background: rgba(255,107,107,.08); border:1px solid rgba(255,107,107,.4); color: inherit; }
+:root.light-mode .grammar-adaptive-start:hover,
+:root.light-mode .grammar-adaptive-submit:hover,
+:root.light-mode .grammar-dictogloss-btn:hover,
+:root.light-mode .speaking-primary:hover,
+:root.light-mode .speaking-secondary:hover {
+    background: linear-gradient(135deg,#9d7be7,#6a9df5);
+    color: #fff;
+}
+:root.light-mode .grammar-adaptive-next:hover { background: linear-gradient(135deg,#3fae6b,#5cbf86); color:#fff; }
+:root.light-mode .grammar-repair-btn:hover { background: linear-gradient(135deg,#d26b4a,#f09c4a); color:#fff; }
+:root.light-mode .speaking-record:hover { background: rgba(255,107,107,.16); color: inherit; }
+
+
+.deck-stats { margin-bottom: 24px; padding: 24px; text-align: left; }
+.deck-stats-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.deck-stats-heading h2 { margin: 0; font-size: 1.3rem; }
+.deck-stats-heading button { width: auto; padding: 8px 16px; }
+.deck-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 18px; margin: 20px 0; }
+.deck-stats-grid dt { font-size: .8rem; color: var(--text-secondary); }
+.deck-stats-grid dd { font-size: 1.6rem; margin: 6px 0 0; font-weight: 600; }
+.deck-stats-note, #deckStatsStatus { font-size: .8rem; color: var(--text-secondary); line-height: 1.6; }

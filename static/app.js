@@ -709,12 +709,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const pretestSubmit = document.getElementById('pretestSubmit');
     const pretestSkip = document.getElementById('pretestSkip');
     let skipNextPretest = false;
+    let pretestWord = '';
 
     function showPretestGate() {
         if (!pretestGate) return;
         pretestGate.classList.remove('hidden');
         pretestGuess.value = '';
         pretestSubmit.disabled = false;
+        // Record that this word was pretested — retrieval attempts before
+        // study are themselves a learning event worth remembering.
+        if (pretestWord) {
+            fetch('/api/learning-lab/word-help', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    word: pretestWord,
+                    event: 'peek',
+                    recordOnly: true,
+                }),
+            }).catch(() => {});
+        }
         setTimeout(() => pretestGuess.focus(), 200);
     }
 
@@ -814,6 +828,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // unless the arrival flow already had its retrieval moment.
         const gateThisCard = !skipNextPretest;
         skipNextPretest = false;
+        pretestWord = word;
         const interpretationForRequest =
             selectedInterpretationInput === word
                 ? selectedInterpretation
@@ -1123,6 +1138,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Clear the input for the next word
                     wordInput.value = '';
+                    window.dispatchEvent(new Event('anki-deck-changed'));
 
                     // Scroll smoothly to the preview section
                     setTimeout(() => {
